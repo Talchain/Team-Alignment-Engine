@@ -1,0 +1,108 @@
+"""Main FastAPI application."""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import logging
+import sys
+
+from src.config import settings
+from src.api.middleware import (
+    RequestIDMiddleware,
+    setup_error_handlers,
+    RateLimiterMiddleware,
+)
+from src.api.routes import (
+    health_router,
+    sessions_router,
+    perspectives_router,
+    analysis_router,
+    options_router,
+    concerns_router,
+    decisions_router,
+)
+from src.storage import init_db, init_cache
+
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.log_level),
+    format='{"timestamp": "%(asctime)s", "level": "%(levelname)s", "name": "%(name)s", "message": "%(message)s"}',
+    stream=sys.stdout,
+)
+
+logger = logging.getLogger(__name__)
+
+# Create FastAPI application
+app = FastAPI(
+    title="Team Alignment Engine",
+    description="Causally-validated team deliberation service",
+    version=settings.service_version,
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.get_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add custom middleware
+app.add_middleware(RequestIDMiddleware)
+app.add_middleware(RateLimiterMiddleware)
+
+# Set up error handlers
+setup_error_handlers(app)
+
+# Include routers
+app.include_router(health_router)
+app.include_router(sessions_router)
+app.include_router(perspectives_router)
+app.include_router(analysis_router)
+app.include_router(options_router)
+app.include_router(concerns_router)
+app.include_router(decisions_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup."""
+    logger.info(f"Starting {settings.service_name} v{settings.service_version}")
+    logger.info(f"Environment: {settings.environment}")
+
+    try:
+        # Initialize database
+        await init_db()
+        logger.info("Database initialized")
+
+        # Initialize cache
+        await init_cache()
+        logger.info("Cache initialized")
+
+        logger.info("Application startup complete")
+    except Exception as e:
+        logger.error(f"Startup failed: {e}", exc_info=True)
+        raise
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    logger.info("Shutting down application")
+    # Close connections, cleanup resources
+    logger.info("Shutdown complete")
+
+
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {
+        "service": settings.service_name,
+        "version": settings.service_version,
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health",
+    }

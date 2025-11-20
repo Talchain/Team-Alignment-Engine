@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  tae:
+    build: .
+    container_name: team-alignment-engine
+    ports:
+      - "8000:8000"
+      - "9090:9090"
+    environment:
+      - DATABASE_URL=postgresql://tae_user:tae_password@postgres:5432/tae_db
+      - REDIS_URL=redis://redis:6379/0
+      - CEE_BASE_URL=${CEE_BASE_URL}
+      - CEE_API_KEY=${CEE_API_KEY}
+      - ISL_BASE_URL=${ISL_BASE_URL}
+      - ISL_API_KEY=${ISL_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENVIRONMENT=production
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - tae-network
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: tae-postgres
+    environment:
+      - POSTGRES_USER=tae_user
+      - POSTGRES_PASSWORD=tae_password
+      - POSTGRES_DB=tae_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - tae-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: tae-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - tae-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  tae-network:
+    driver: bridge
