@@ -45,6 +45,9 @@ class SessionDB(Base):
     reopened_from_id = Column(UUID(as_uuid=True), nullable=True)
     chain_depth = Column(Integer, nullable=False, default=0)
 
+    # Phase D: Organizational intelligence
+    organization_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     completed_at = Column(DateTime, nullable=True)
@@ -247,5 +250,98 @@ class DecisionRetrospectiveDB(Base):
     narrative = Column(String(5000), nullable=False)  # Human-readable summary
     lessons_learned = Column(JSON, nullable=False)  # List of lessons
 
+    # Phase D: Analytics ratings
+    quality_rating = Column(Float, nullable=True)  # 1-10 scale
+    satisfaction_rating = Column(Float, nullable=True)  # 1-10 scale
+    would_repeat_decision = Column(Boolean, nullable=True)
+
     recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     recorded_by = Column(UUID(as_uuid=True), nullable=False)
+
+# Phase D: Organizational Intelligence Models
+
+class DecisionDependencyDB(Base):
+    """Database model for decision dependencies (Phase D3)."""
+
+    __tablename__ = "decision_dependencies"
+
+    dependency_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_session_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    target_session_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    dependency_type = Column(String(50), nullable=False)  # blocks, related_to, supersedes, depends_on
+    description = Column(String(500), nullable=True)
+    
+    created_by = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    resolved_at = Column(DateTime, nullable=True, index=True)
+
+
+class PatternAnalysisCacheDB(Base):
+    """Database model for cached pattern analysis (Phase D4)."""
+
+    __tablename__ = "pattern_analysis_cache"
+
+    cache_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    decision_type = Column(String(100), nullable=False)
+    pattern_type = Column(String(50), nullable=False)  # success, failure, neutral
+    
+    sample_size = Column(Integer, nullable=False)
+    common_characteristics = Column(JSON, nullable=False)
+    avg_metrics = Column(JSON, nullable=False)
+    confidence = Column(Float, nullable=False)
+    recommendations = Column(JSON, nullable=False)
+    
+    analysis_period_days = Column(Integer, nullable=False)
+    generated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+
+
+class CoordinationGroupDB(Base):
+    """Database model for coordination groups (Phase D6)."""
+
+    __tablename__ = "coordination_groups"
+
+    group_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(200), nullable=False)
+    description = Column(String(1000), nullable=False)
+    session_ids = Column(JSON, nullable=False)  # List of UUIDs as strings
+    
+    created_by = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    archived_at = Column(DateTime, nullable=True, index=True)
+
+
+class DetectedConflictDB(Base):
+    """Database model for detected conflicts (Phase D6)."""
+
+    __tablename__ = "detected_conflicts"
+
+    conflict_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conflict_type = Column(String(50), nullable=False, index=True)  # temporal, resource, dependency, scope
+    session_ids = Column(JSON, nullable=False)  # List of UUIDs as strings
+    severity = Column(String(20), nullable=False, index=True)  # high, medium, low
+    
+    description = Column(String(1000), nullable=False)
+    resolution_suggestions = Column(JSON, nullable=False)
+    
+    detected_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    resolved_at = Column(DateTime, nullable=True, index=True)
+    resolution_description = Column(String(1000), nullable=True)
+
+
+class AnalyticsCacheDB(Base):
+    """Database model for analytics cache (Phase D5)."""
+
+    __tablename__ = "analytics_cache"
+
+    cache_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    analysis_type = Column(String(50), nullable=False, index=True)  # trend, benchmark
+    metric_name = Column(String(100), nullable=True)
+    decision_type = Column(String(100), nullable=True)
+    
+    result_data = Column(JSON, nullable=False)
+    
+    generated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)

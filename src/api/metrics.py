@@ -158,3 +158,179 @@ class MetricsMiddleware:
             endpoint=path,
             status_code=status_code
         ).observe(duration)
+
+# Phase D: Organizational Intelligence Metrics
+
+# D1: Portfolio Analytics
+portfolio_analytics_requests_total = Counter(
+    'tae_portfolio_analytics_requests_total',
+    'Total portfolio analytics requests'
+)
+
+portfolio_health_score = Gauge(
+    'tae_portfolio_health_score',
+    'Current portfolio health score',
+    ['organization_id']
+)
+
+portfolio_bottlenecks_detected = Gauge(
+    'tae_portfolio_bottlenecks_detected',
+    'Number of bottlenecks detected in portfolio',
+    ['organization_id', 'severity']
+)
+
+# D2: Real-time Collaboration
+websocket_connections_total = Counter(
+    'tae_websocket_connections_total',
+    'Total WebSocket connections established'
+)
+
+websocket_connections_active = Gauge(
+    'tae_websocket_connections_active',
+    'Currently active WebSocket connections',
+    ['session_id']
+)
+
+collaboration_actions_broadcasted_total = Counter(
+    'tae_collaboration_actions_broadcasted_total',
+    'Total collaboration actions broadcasted',
+    ['action_type']
+)
+
+presence_updates_total = Counter(
+    'tae_presence_updates_total',
+    'Total presence updates processed'
+)
+
+websocket_broadcast_duration_seconds = Histogram(
+    'tae_websocket_broadcast_duration_seconds',
+    'WebSocket broadcast latency in seconds',
+    buckets=(0.01, 0.05, 0.1, 0.2, 0.5, 1.0)
+)
+
+# D3: Decision Dependencies
+dependencies_created_total = Counter(
+    'tae_dependencies_created_total',
+    'Total decision dependencies created',
+    ['dependency_type']
+)
+
+dependencies_resolved_total = Counter(
+    'tae_dependencies_resolved_total',
+    'Total dependencies resolved'
+)
+
+circular_dependencies_prevented_total = Counter(
+    'tae_circular_dependencies_prevented_total',
+    'Total circular dependencies prevented'
+)
+
+dependency_graph_size = Gauge(
+    'tae_dependency_graph_size',
+    'Number of nodes in dependency graph',
+    ['organization_id']
+)
+
+dependency_graph_complexity = Gauge(
+    'tae_dependency_graph_complexity',
+    'Max depth of dependency graph',
+    ['organization_id']
+)
+
+dependency_graph_generation_duration_seconds = Histogram(
+    'tae_dependency_graph_generation_duration_seconds',
+    'Dependency graph generation duration in seconds',
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
+)
+
+# D4: Organizational Patterns
+pattern_analysis_requests_total = Counter(
+    'tae_pattern_analysis_requests_total',
+    'Total pattern analysis requests'
+)
+
+patterns_identified_total = Gauge(
+    'tae_patterns_identified_total',
+    'Number of patterns identified',
+    ['organization_id', 'pattern_type']
+)
+
+pattern_confidence_average = Gauge(
+    'tae_pattern_confidence_average',
+    'Average confidence of identified patterns',
+    ['organization_id']
+)
+
+# D5: Advanced Analytics
+trend_analysis_requests_total = Counter(
+    'tae_trend_analysis_requests_total',
+    'Total trend analysis requests',
+    ['metric_name']
+)
+
+benchmark_requests_total = Counter(
+    'tae_benchmark_requests_total',
+    'Total benchmark comparison requests',
+    ['decision_type']
+)
+
+trend_analysis_duration_seconds = Histogram(
+    'tae_trend_analysis_duration_seconds',
+    'Trend analysis computation duration in seconds',
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
+)
+
+metric_percentile_ranking = Gauge(
+    'tae_metric_percentile_ranking',
+    'Percentile ranking for organizational metrics',
+    ['organization_id', 'metric_name']
+)
+
+# D6: Cross-Team Coordination
+conflicts_detected_total = Counter(
+    'tae_conflicts_detected_total',
+    'Total conflicts detected',
+    ['conflict_type', 'severity']
+)
+
+conflicts_resolved_total = Counter(
+    'tae_conflicts_resolved_total',
+    'Total conflicts resolved',
+    ['conflict_type']
+)
+
+coordination_groups_created_total = Counter(
+    'tae_coordination_groups_created_total',
+    'Total coordination groups created'
+)
+
+active_conflicts = Gauge(
+    'tae_active_conflicts',
+    'Number of active unresolved conflicts',
+    ['organization_id', 'severity']
+)
+
+coordination_group_size = Histogram(
+    'tae_coordination_group_size',
+    'Number of sessions in coordination groups',
+    buckets=(2, 3, 5, 10, 20)
+)
+
+# Cache Performance
+cache_hits_total = Counter(
+    'tae_cache_hits_total',
+    'Total cache hits',
+    ['cache_type']
+)
+
+cache_misses_total = Counter(
+    'tae_cache_misses_total',
+    'Total cache misses',
+    ['cache_type']
+)
+
+cache_expiry_total = Counter(
+    'tae_cache_expiry_total',
+    'Total cache entries expired',
+    ['cache_type']
+)
