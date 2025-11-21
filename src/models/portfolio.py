@@ -310,11 +310,10 @@ class UserPresence(BaseModel):
     """User presence in session."""
 
     user_id: str
-    display_name: str
-    status: Literal["active", "idle", "away"]
-    connected_at: datetime
-    last_activity: datetime
-    current_view: Optional[str] = None
+    session_id: UUID
+    joined_at: datetime
+    last_seen: datetime
+    metadata: Dict = Field(default_factory=dict)
 
 
 class CollaborationAction(BaseModel):
@@ -338,7 +337,6 @@ class SessionState(BaseModel):
     """Current state of collaborative session."""
 
     session_id: UUID
-    status: str
-    online_users: List[UserPresence]
-    recent_actions: List[CollaborationAction]
-    unread_count: int
+    active_users: List[UserPresence]
+    recent_actions: List[Dict]  # Simplified action data
+    last_activity: datetime

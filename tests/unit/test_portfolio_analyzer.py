@@ -44,6 +44,7 @@ def sample_sessions():
     sessions = []
 
     # Completed session
+    user1_id = uuid4()
     sessions.append(
         AlignmentSession(
             session_id=uuid4(),
@@ -60,7 +61,7 @@ def sample_sessions():
             completed_at=now - timedelta(days=3),
             decision_context="Test context",
             alignment_mode="evidence_backed",
-            created_by="user1",
+            created_by=user1_id,
         )
     )
 
@@ -81,7 +82,7 @@ def sample_sessions():
             completed_at=None,
             decision_context="Test context",
             alignment_mode="evidence_backed",
-            created_by="user1",
+            created_by=user1_id,
         )
     )
 
@@ -102,7 +103,7 @@ def sample_sessions():
             completed_at=None,
             decision_context="Test context",
             alignment_mode="evidence_backed",
-            created_by="user1",
+            created_by=user1_id,
         )
     )
 
@@ -124,7 +125,7 @@ def sample_sessions():
             completed_at=now - timedelta(days=1),
             decision_context="Test context",
             alignment_mode="evidence_backed",
-            created_by="user1",
+            created_by=user1_id,
         )
     )
 
@@ -136,6 +137,7 @@ def portfolio_filters():
     """Create default portfolio filters."""
     now = datetime.utcnow()
     return PortfolioFilters(
+        organization_id=uuid4(),
         date_range=DateRange(start=now - timedelta(days=30), end=now)
     )
 
@@ -213,6 +215,7 @@ class TestPortfolioAnalyzer:
         """Test metrics aggregation with no completed sessions."""
         from src.models.session import AlignmentSession
 
+        user1_id = uuid4()
         # Create only non-completed sessions
         sessions = [
             AlignmentSession(
@@ -227,7 +230,7 @@ class TestPortfolioAnalyzer:
                 completed_at=None,
                 decision_context="Test",
                 alignment_mode="quick",
-                created_by="user1",
+                created_by=user1_id,
             )
         ]
 
@@ -260,6 +263,7 @@ class TestPortfolioAnalyzer:
         """Test clustering with no duplicate decision types."""
         from src.models.session import AlignmentSession
 
+        user1_id = uuid4()
         # Create sessions with unique decision types
         sessions = [
             AlignmentSession(
@@ -274,7 +278,7 @@ class TestPortfolioAnalyzer:
                 completed_at=datetime.utcnow(),
                 decision_context="Test",
                 alignment_mode="quick",
-                created_by="user1",
+                created_by=user1_id,
             )
             for i in range(3)
         ]
@@ -301,6 +305,7 @@ class TestPortfolioAnalyzer:
         """Test bottleneck detection with healthy sessions."""
         from src.models.session import AlignmentSession
 
+        user1_id = uuid4()
         # Create only recently completed sessions
         sessions = [
             AlignmentSession(
@@ -315,7 +320,7 @@ class TestPortfolioAnalyzer:
                 completed_at=datetime.utcnow(),
                 decision_context="Test",
                 alignment_mode="quick",
-                created_by="user1",
+                created_by=user1_id,
             )
         ]
 
