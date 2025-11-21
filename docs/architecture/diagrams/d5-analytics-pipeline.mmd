@@ -1,0 +1,38 @@
+```mermaid
+flowchart TD
+    Start([API Request: GET /trends?metric=decision_time]) --> Query
+
+    Query[Query Time Series Data<br/>SELECT DATE_TRUNC'week', created_at AS timestamp,<br/>AVG extract'epoch' FROM updated_at - created_at/86400 AS value,<br/>COUNT* AS sample_size<br/>FROM sessions<br/>GROUP BY timestamp<br/>ORDER BY timestamp] --> Raw[Raw Time Series<br/>13 weekly data points]
+
+    Raw --> MA[Calculate Moving Averages<br/>- 3-period SMA<br/>- 6-period SMA<br/>pandas.rolling'mean']
+
+    MA --> Trend[Linear Regression<br/>scipy.stats.linregress'x, y<br/>- Slope: -0.03<br/>- Intercept: 5.5<br/>- R²: 0.72<br/>- Direction: improving]
+
+    Trend --> Change[Changepoint Detection<br/>For each consecutive window:<br/>t_stat, p_val = ttest_ind'before, after<br/>if p_val < 0.05: changepoint]
+
+    Change --> Found{Changepoints<br/>Detected?}
+
+    Found -->|Yes| CP[Changepoints Found<br/>- 2024-12-15<br/>- Magnitude: -0.8 days<br/>- Confidence: 0.85<br/>- Likely cause: TBD]
+    Found -->|No| NoCP[No Significant Changes]
+
+    CP --> CEE[Call CEE Service<br/>Analyze changepoint context<br/>Likely cause: Implemented decision playbooks]
+    NoCP --> Forecast
+    CEE --> Forecast
+
+    Forecast[30-Day Forecast<br/>Linear extrapolation<br/>for t in future_dates:<br/>  predicted = slope * t + intercept<br/>  ci = 1.96 * std'residuals]
+
+    Forecast --> ForecastData[Forecast Points<br/>- 2025-02-07: 4.2 days 95% CI: 3.0-5.4<br/>- 2025-02-14: 4.1 days<br/>- 2025-02-21: 4.0 days]
+
+    ForecastData --> Cache[Cache Results<br/>TTL: 1 hour<br/>Key: trends:123:decision_time:90]
+
+    Cache --> Return([Return TrendAnalysis])
+
+    style Query fill:#e3f2fd,stroke:#1976d2
+    style Trend fill:#fff3e0,stroke:#f57c00
+    style Change fill:#f3e5f5,stroke:#7b1fa2
+    style Forecast fill:#e8f5e9,stroke:#388e3c
+    style CEE fill:#2196f3,color:#fff
+    style Cache fill:#9c27b0,color:#fff
+```
+
+**Description**: Advanced analytics pipeline showing time series querying, moving average calculation, linear regression, changepoint detection, CEE cause analysis, and forecasting with confidence intervals.

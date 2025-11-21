@@ -1,0 +1,63 @@
+```mermaid
+sequenceDiagram
+    participant Service as TAE Service<br/>(D1, D4, D5, D6)
+    participant Cache as Redis Cache
+    participant CEE as CEE Service<br/>(Phase C)
+    participant LLM as Language Model
+
+    Note over Service,LLM: Integration Pattern with Mock Mode Support
+
+    Service->>Service: Check if CEE_USE_MOCK=true
+
+    alt Mock Mode Enabled (Development/Testing)
+        Service->>Service: Generate mock insights<br/>using rule-based heuristics
+        Note over Service: Examples:<br/>- "Health score >0.8 indicates strong performance"<br/>- "Consider addressing 2 high-priority bottlenecks"
+        Service-->>Service: Return mock insights
+    else Production Mode (Real CEE)
+        Service->>Cache: Check cache<br/>Key: cee_insights:{hash(prompt)}
+
+        alt Cache HIT
+            Cache-->>Service: Return cached insights
+        else Cache MISS
+            Cache-->>Service: No cached result
+
+            Service->>CEE: POST /generate<br/>Authorization: Bearer {CEE_API_KEY}
+            Note over Service,CEE: Request Body:<br/>{<br/>  "prompt": "Generate strategic insights...",<br/>  "context": {<br/>    "organization_id": "...",<br/>    "metrics": {...},<br/>    "patterns": {...}<br/>  }<br/>}
+
+            CEE->>CEE: Validate request & context
+            CEE->>LLM: Generate insights<br/>using organizational context
+            LLM-->>CEE: Generated insights
+
+            CEE->>CEE: Post-process & format
+            CEE-->>Service: 200 OK<br/>{insights: [...]}
+
+            Service->>Cache: Store insights<br/>TTL: 1 hour
+        end
+    end
+
+    Note over Service,LLM: Resilience Patterns
+
+    rect rgb(255, 243, 224)
+        Note over Service,CEE: Circuit Breaker:<br/>- Failure threshold: 5<br/>- Recovery timeout: 60s<br/>- Stops calling CEE after failures
+    end
+
+    rect rgb(232, 245, 233)
+        Note over Service,CEE: Timeout:<br/>- Request timeout: 5 seconds<br/>- Prevents hanging requests
+    end
+
+    rect rgb(243, 229, 245)
+        Note over Service,CEE: Retry with Exponential Backoff:<br/>- Attempt 1: 2s delay<br/>- Attempt 2: 4s delay<br/>- Attempt 3: 8s delay
+    end
+
+    rect rgb(227, 242, 253)
+        Note over Service,CEE: Graceful Degradation:<br/>- On CEE failure: return generic insights<br/>- Never fail TAE request due to CEE
+    end
+```
+
+**Description**: CEE integration architecture showing mock mode, caching strategy, resilience patterns (circuit breaker, timeout, retry, graceful degradation).
+
+**Integration Points**:
+- **D1 Portfolio**: Strategic insights for organizational health
+- **D4 Patterns**: Best practices extraction from patterns
+- **D5 Analytics**: Changepoint cause analysis
+- **D6 Coordination**: Conflict resolution recommendations

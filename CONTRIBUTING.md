@@ -352,16 +352,119 @@ KEYS *
 - **Input Validation:** Validate all inputs with Pydantic
 - **Authentication:** Require auth on sensitive endpoints
 - **Rate Limiting:** Enforce rate limits
-- **SQL Injection:** Use parameterized queries
+- **SQL Injection:** Use parameterized queries (use SQLAlchemy, never string formatting)
 - **XSS:** Sanitize user input
 - **Secrets:** Never commit secrets to git
+- **WebSocket Authentication:** Validate user_id before establishing connection
+- **Dependency Validation:** Prevent circular dependencies before insertion
+
+## Phase D-Specific Guidelines
+
+### D1: Portfolio Analytics
+
+- Always cache results with appropriate TTL (5-10 minutes)
+- Use async database queries with connection pooling
+- Implement pagination for large result sets
+- Document performance targets in tests
+
+### D2: Real-Time Collaboration
+
+- Test WebSocket connections with heartbeat mechanism
+- Handle connection drops gracefully
+- Use Redis pub/sub for broadcasting (not database polling)
+- Monitor connection limits per session (default: 50)
+
+### D3: Decision Dependencies
+
+- Always check for circular dependencies before insertion
+- Cache dependency graphs (TTL: 5 minutes)
+- Use NetworkX for graph algorithms
+- Test with complex dependency chains (>10 nodes)
+
+### D4: Organizational Patterns
+
+- Require minimum sample size (default: 3 sessions per pattern)
+- Cache pattern analysis results (TTL: 1 hour)
+- Document pattern classification thresholds
+- Include confidence scores in results
+
+### D5: Advanced Analytics
+
+- Use scipy/numpy for statistical calculations
+- Document statistical methods in docstrings
+- Include confidence intervals in forecasts
+- Cache analytics results (TTL: 1-4 hours based on data volatility)
+
+### D6: Cross-Team Coordination
+
+- Test all four conflict types (temporal, resource, dependency, scope)
+- Document conflict severity thresholds
+- Generate actionable resolution suggestions
+- Cache coordination views (TTL: 5 minutes)
+
+## Performance Requirements
+
+All Phase D endpoints must meet these performance targets (p95 latency):
+
+- Portfolio Analytics (100 sessions): <5s
+- Health Score: <1s
+- WebSocket Broadcast: <100ms
+- Dependency Graph (100 decisions): <2s
+- Pattern Analysis (90 days): <3s
+- Trend Analysis (90 days): <2s
+- Benchmarks: <1s
+- Coordination View (50 sessions): <2s
+
+If your changes impact performance, include load test results in your PR.
+
+## Documentation Requirements
+
+When adding Phase D features, update:
+
+1. **OpenAPI Spec** (`docs/api/phase-d-openapi.yml`):
+   - Add endpoint definition
+   - Include request/response schemas
+   - Add concrete examples
+   - Document error responses
+
+2. **Architecture Documentation** (`docs/architecture/phase-d-overview.md`):
+   - Update capability descriptions
+   - Add architecture diagrams if needed
+   - Document design decisions
+
+3. **Developer Guide** (`docs/developers/GETTING_STARTED.md`):
+   - Update setup instructions if dependencies change
+   - Add testing instructions for new features
+
+4. **Operational Runbooks** (`docs/operations/runbooks/`):
+   - Add troubleshooting procedures for new features
+   - Document scaling/performance tuning
+   - Include disaster recovery procedures
 
 ## Getting Help
 
 - **Documentation:** Check `/docs` directory
-- **API Docs:** Run server and visit `/docs`
+- **Phase D Architecture:** `docs/architecture/phase-d-overview.md`
+- **API Documentation:** `docs/api/phase-d-openapi.yml`
+- **Developer Guide:** `docs/developers/GETTING_STARTED.md`
+- **API Docs:** Run server and visit `http://localhost:8000/docs`
+- **Slack:** #tae-dev channel
 - **Issues:** Search existing issues on GitHub
 - **Discussions:** Ask questions in GitHub Discussions
+
+## Code Review Checklist
+
+Before requesting review, ensure:
+
+- [ ] Tests added/updated and passing (`pytest`)
+- [ ] Code coverage maintained (>80%)
+- [ ] Performance targets met (run load tests if applicable)
+- [ ] Type hints added (`mypy src/` passes)
+- [ ] Code formatted (`black`, `isort`)
+- [ ] Linting passes (`flake8`)
+- [ ] Documentation updated
+- [ ] Commit messages follow conventional format
+- [ ] PR description complete with testing details
 
 ## License
 

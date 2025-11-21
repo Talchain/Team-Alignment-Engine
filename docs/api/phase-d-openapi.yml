@@ -1,0 +1,2336 @@
+openapi: 3.1.0
+info:
+  title: Team Alignment Engine - Phase D API
+  version: 2.0.0
+  description: |
+    # Team Alignment Engine - Phase D: Organizational Intelligence
+
+    Phase D introduces enterprise-scale organizational intelligence capabilities for the Team Alignment Engine.
+
+    ## Phase D Capabilities
+
+    - **D1: Portfolio Analytics** - Cross-session decision analytics and organizational health metrics
+    - **D2: Real-Time Collaboration** - WebSocket-based presence tracking and live action broadcasting
+    - **D3: Decision Dependencies** - Dependency graph management with circular dependency detection
+    - **D4: Organizational Patterns** - Pattern extraction from historical decision data
+    - **D5: Advanced Analytics** - Trend analysis, forecasting, and comparative benchmarking
+    - **D6: Cross-Team Coordination** - Multi-team conflict detection and coordination group management
+
+    ## Authentication
+
+    All endpoints require Bearer token authentication via the `Authorization` header:
+
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+
+    ## Rate Limiting
+
+    - Standard endpoints: 1000 requests/hour per organization
+    - Analytics endpoints: 100 requests/hour per organization
+    - WebSocket connections: 50 concurrent per session
+
+    ## Performance Targets
+
+    - Portfolio analytics: <5s for 100 sessions
+    - WebSocket broadcast: <100ms p95 latency
+    - Dependency graph: <2s for 100 decisions
+    - Pattern analysis: <3s for 90 days of history
+    - Trend analysis: <2s for 90 days of data
+    - Coordination view: <2s for 50 active decisions
+
+  contact:
+    name: Olumi API Support
+    email: api-support@olumi.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.olumi.com
+    description: Production
+  - url: https://api-staging.olumi.com
+    description: Staging
+  - url: http://localhost:8000
+    description: Local Development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: portfolio
+    description: D1 - Portfolio Analytics endpoints
+  - name: collaboration
+    description: D2 - Real-Time Collaboration endpoints
+  - name: dependencies
+    description: D3 - Decision Dependencies endpoints
+  - name: patterns
+    description: D4 - Organizational Patterns endpoints
+  - name: advanced-analytics
+    description: D5 - Advanced Analytics endpoints
+  - name: coordination
+    description: D6 - Cross-Team Coordination endpoints
+
+paths:
+  # ==================== D1: Portfolio Analytics ====================
+
+  /api/v1/portfolio/analytics:
+    get:
+      tags: [portfolio]
+      summary: Get portfolio-level analytics
+      description: |
+        Retrieve aggregated decision metrics, clusters, bottlenecks, and strategic insights
+        across multiple sessions for organizational decision health analysis.
+
+        **What it returns:**
+        - Aggregated metrics (avg decision time, quality, satisfaction)
+        - Decision clusters (related decisions grouped by theme)
+        - Bottlenecks (stuck sessions, overloaded stakeholders)
+        - Portfolio health score (0-1)
+        - CEE-generated strategic insights
+
+        **Use cases:**
+        - Executive dashboards
+        - Portfolio health monitoring
+        - Organizational bottleneck identification
+        - Strategic planning
+
+        **Performance:** Target <5s for 100 sessions
+      operationId: getPortfolioAnalytics
+      parameters:
+        - name: organization_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Organization ID to analyze
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Start date for analysis period (defaults to 30 days ago)
+          example: "2025-01-01T00:00:00Z"
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: End date for analysis period (defaults to now)
+          example: "2025-01-31T23:59:59Z"
+        - name: teams
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+          description: Filter by specific team IDs
+          example: ["550e8400-e29b-41d4-a716-446655440001"]
+        - name: decision_types
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by decision types
+          example: ["pricing", "feature", "hiring"]
+        - name: session_status
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [active, completed, archived]
+          description: Filter by session status
+        - name: min_risk_score
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1
+          description: Minimum risk score threshold
+          example: 0.7
+      responses:
+        '200':
+          description: Portfolio analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioAnalysisResponse'
+              example:
+                analysis:
+                  organization_id: "550e8400-e29b-41d4-a716-446655440000"
+                  period:
+                    start: "2025-01-01T00:00:00Z"
+                    end: "2025-01-31T23:59:59Z"
+                  total_sessions: 45
+                  active_sessions: 12
+                  completed_sessions: 33
+                  metrics:
+                    avg_decision_time_days: 4.2
+                    avg_quality_rating: 8.5
+                    avg_satisfaction_score: 8.8
+                    total_options_proposed: 180
+                    total_ai_options_used: 65
+                    causal_validation_success_rate: 0.85
+                    minority_concern_validation_rate: 0.78
+                  clusters:
+                    - cluster_id: "pricing_cluster"
+                      theme: "Pricing Strategy"
+                      session_ids: ["550e8400-e29b-41d4-a716-446655440010", "550e8400-e29b-41d4-a716-446655440011"]
+                      avg_complexity: 0.72
+                      common_stakeholders: ["alice@example.com", "bob@example.com"]
+                  bottlenecks:
+                    - bottleneck_type: "stuck_session"
+                      session_id: "550e8400-e29b-41d4-a716-446655440020"
+                      description: "Session stuck in voting for 12 days"
+                      severity: "high"
+                      recommendation: "Schedule alignment meeting with stakeholders"
+                  health_score: 0.82
+                  strategic_insights:
+                    - "Decision velocity improved 25% month-over-month"
+                    - "Pricing decisions consistently outperform other types"
+                    - "3 sessions require immediate attention"
+                  generated_at: "2025-01-31T12:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/InsufficientData'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/portfolio/health-score:
+    get:
+      tags: [portfolio]
+      summary: Get portfolio health score
+      description: |
+        Lightweight endpoint returning just the portfolio health score and key counts
+        without full analytics. Optimized for dashboards and frequent polling.
+
+        **Performance:** Target <1s response time
+      operationId: getPortfolioHealthScore
+      parameters:
+        - name: organization_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Organization ID
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Health score retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organization_id:
+                    type: string
+                    format: uuid
+                  health_score:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                    description: Overall portfolio health (0-1, higher is better)
+                  total_sessions:
+                    type: integer
+                  active_sessions:
+                    type: integer
+                  completed_sessions:
+                    type: integer
+                  high_priority_bottlenecks:
+                    type: integer
+                    description: Count of critical issues requiring attention
+                  period:
+                    type: object
+                    properties:
+                      start:
+                        type: string
+                        format: date-time
+                      end:
+                        type: string
+                        format: date-time
+              example:
+                organization_id: "550e8400-e29b-41d4-a716-446655440000"
+                health_score: 0.82
+                total_sessions: 45
+                active_sessions: 12
+                completed_sessions: 33
+                high_priority_bottlenecks: 2
+                period:
+                  start: "2025-01-01T00:00:00Z"
+                  end: "2025-01-31T23:59:59Z"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== D2: Real-Time Collaboration ====================
+
+  /api/v1/collaboration/ws/{session_id}:
+    get:
+      tags: [collaboration]
+      summary: WebSocket endpoint for real-time collaboration
+      description: |
+        Establish WebSocket connection for real-time presence tracking and action broadcasting.
+
+        **Protocol:**
+        1. Client connects with `user_id` query parameter
+        2. Server sends initial session state
+        3. Server broadcasts `presence_joined` to all participants
+        4. Client sends heartbeat every 10s to maintain presence
+        5. Client sends actions (votes, proposals, concerns)
+        6. Server broadcasts actions to all participants
+        7. On disconnect, server broadcasts `presence_left`
+
+        **Client → Server messages:**
+
+        ```json
+        // Heartbeat
+        {
+          "type": "heartbeat",
+          "timestamp": "2025-01-01T00:00:00Z"
+        }
+
+        // Action
+        {
+          "type": "action",
+          "action_type": "vote_cast",
+          "target_id": "550e8400-e29b-41d4-a716-446655440010",
+          "data": {"value": "strong"},
+          "persist": true
+        }
+        ```
+
+        **Server → Client messages:**
+
+        ```json
+        // Session state (initial)
+        {
+          "event_type": "session_state",
+          "data": {
+            "session_id": "...",
+            "active_users": [...],
+            "recent_actions": [...]
+          },
+          "timestamp": "2025-01-01T00:00:00Z"
+        }
+
+        // Presence joined
+        {
+          "event_type": "presence_joined",
+          "data": {"user_id": "user123"},
+          "timestamp": "2025-01-01T00:00:00Z"
+        }
+
+        // Collaboration action
+        {
+          "event_type": "collaboration_action",
+          "data": {
+            "user_id": "user123",
+            "action_type": "vote_cast",
+            "target_id": "option-uuid",
+            "data": {"value": "strong"}
+          },
+          "timestamp": "2025-01-01T00:00:00Z"
+        }
+        ```
+
+        **Performance:** Target <100ms p95 broadcast latency, 50 concurrent users per session
+      operationId: collaborationWebSocket
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Session ID to join
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: User ID connecting to session
+      responses:
+        '101':
+          description: WebSocket connection established
+        '400':
+          description: Invalid session or user ID
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/collaboration/{session_id}/state:
+    get:
+      tags: [collaboration]
+      summary: Get session collaboration state
+      description: |
+        Get current session state including active users and recent actions
+        without establishing WebSocket connection. Useful for initial page load.
+
+        **Performance:** Target <500ms response time
+      operationId: getSessionState
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session state retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionState'
+              example:
+                session_id: "550e8400-e29b-41d4-a716-446655440000"
+                active_users:
+                  - user_id: "alice@example.com"
+                    session_id: "550e8400-e29b-41d4-a716-446655440000"
+                    joined_at: "2025-01-31T12:00:00Z"
+                    last_seen: "2025-01-31T12:05:30Z"
+                    metadata: {}
+                recent_actions:
+                  - action_type: "vote_cast"
+                    target_id: "550e8400-e29b-41d4-a716-446655440010"
+                    user_id: "alice@example.com"
+                    timestamp: "2025-01-31T12:05:00Z"
+                last_activity: "2025-01-31T12:05:30Z"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/collaboration/{session_id}/presence:
+    post:
+      tags: [collaboration]
+      summary: Update user presence
+      description: |
+        Alternative to WebSocket heartbeat for clients that can't maintain
+        WebSocket connections. Presence expires after 30 seconds without update.
+
+        **Use cases:**
+        - Mobile clients with unstable connections
+        - Polling-based fallback
+      operationId: updatePresence
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+              properties:
+                user_id:
+                  type: string
+                metadata:
+                  type: object
+                  additionalProperties: true
+            example:
+              user_id: "alice@example.com"
+              metadata:
+                page: "voting"
+      responses:
+        '200':
+          description: Presence updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  session_id:
+                    type: string
+                    format: uuid
+                  user_id:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/collaboration/{session_id}/broadcast:
+    post:
+      tags: [collaboration]
+      summary: Broadcast collaboration action
+      description: |
+        Broadcast an action to all connected WebSocket clients. Alternative to
+        sending via WebSocket for REST API clients.
+
+        **Use cases:**
+        - REST API fallback
+        - Server-side action triggers
+      operationId: broadcastAction
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - action
+              properties:
+                user_id:
+                  type: string
+                action:
+                  $ref: '#/components/schemas/CollaborationAction'
+            example:
+              user_id: "alice@example.com"
+              action:
+                action_type: "vote_cast"
+                target_id: "550e8400-e29b-41d4-a716-446655440010"
+                data:
+                  value: "strong"
+                persist: true
+      responses:
+        '200':
+          description: Action broadcasted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  session_id:
+                    type: string
+                    format: uuid
+                  action_type:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/collaboration/{session_id}/active-users:
+    get:
+      tags: [collaboration]
+      summary: Get active users in session
+      description: |
+        Retrieve list of currently active users in a session.
+
+        **Performance:** Target <200ms response time
+      operationId: getActiveUsers
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Active users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                  active_users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserPresence'
+                  count:
+                    type: integer
+              example:
+                session_id: "550e8400-e29b-41d4-a716-446655440000"
+                active_users:
+                  - user_id: "alice@example.com"
+                    session_id: "550e8400-e29b-41d4-a716-446655440000"
+                    joined_at: "2025-01-31T12:00:00Z"
+                    last_seen: "2025-01-31T12:05:30Z"
+                    metadata: {}
+                count: 1
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== D3: Decision Dependencies ====================
+
+  /api/v1/dependencies:
+    post:
+      tags: [dependencies]
+      summary: Add dependency between decisions
+      description: |
+        Create a dependency link from source to target decision with automatic
+        circular dependency detection.
+
+        **Dependency types:**
+        - `blocks`: Source is blocked by target
+        - `depends_on`: Source depends on target outcome
+        - `relates_to`: Source is related to target
+        - `supersedes`: Source supersedes target
+
+        **Circular dependency detection:**
+        Automatically prevents cycles. Returns 409 Conflict if cycle would be created.
+      operationId: addDependency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - source_session_id
+                - target_session_id
+                - dependency_type
+                - created_by
+              properties:
+                source_session_id:
+                  type: string
+                  format: uuid
+                  description: Session that affects target
+                target_session_id:
+                  type: string
+                  format: uuid
+                  description: Session that is affected
+                dependency_type:
+                  type: string
+                  enum: [blocks, depends_on, relates_to, supersedes]
+                description:
+                  type: string
+                  description: Why this dependency exists
+                created_by:
+                  type: string
+            example:
+              source_session_id: "550e8400-e29b-41d4-a716-446655440001"
+              target_session_id: "550e8400-e29b-41d4-a716-446655440002"
+              dependency_type: "blocks"
+              description: "Pricing depends on feature scope completion"
+              created_by: "alice@example.com"
+      responses:
+        '201':
+          description: Dependency created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dependency:
+                    $ref: '#/components/schemas/DecisionDependency'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Session not found
+        '409':
+          description: Circular dependency detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Circular dependency detected"
+                detail: "Adding this dependency would create a cycle: A → B → C → A"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/dependencies/{dependency_id}:
+    delete:
+      tags: [dependencies]
+      summary: Remove dependency
+      description: |
+        Remove a dependency link between decisions.
+
+        **Use cases:**
+        - Dependency no longer relevant
+        - Correcting mistaken dependency
+      operationId: removeDependency
+      parameters:
+        - name: dependency_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dependency removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  dependency_id:
+                    type: string
+                    format: uuid
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/dependencies/{dependency_id}/resolve:
+    post:
+      tags: [dependencies]
+      summary: Resolve dependency
+      description: |
+        Mark a dependency as resolved, indicating target decision completed
+        and source is no longer blocked. Dependency remains in history for audit.
+
+        **Use cases:**
+        - Auto-called when target decision completes
+        - Manually called to unblock dependent decision
+      operationId: resolveDependency
+      parameters:
+        - name: dependency_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dependency resolved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  dependency_id:
+                    type: string
+                    format: uuid
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/dependencies/session/{session_id}:
+    get:
+      tags: [dependencies]
+      summary: Get session dependencies
+      description: |
+        Retrieve all dependencies for a session, separated into incoming
+        (this session depends on others) and outgoing (others depend on this).
+      operationId: getSessionDependencies
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dependencies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                  incoming:
+                    type: array
+                    description: Dependencies where this session is source
+                    items:
+                      $ref: '#/components/schemas/DecisionDependency'
+                  outgoing:
+                    type: array
+                    description: Dependencies where this session is target
+                    items:
+                      $ref: '#/components/schemas/DecisionDependency'
+                  total:
+                    type: integer
+              example:
+                session_id: "550e8400-e29b-41d4-a716-446655440000"
+                incoming:
+                  - dependency_id: "550e8400-e29b-41d4-a716-446655440100"
+                    source_session_id: "550e8400-e29b-41d4-a716-446655440000"
+                    target_session_id: "550e8400-e29b-41d4-a716-446655440001"
+                    dependency_type: "blocks"
+                    description: "Pricing depends on feature scope"
+                    created_by: "alice@example.com"
+                    created_at: "2025-01-31T12:00:00Z"
+                    resolved_at: null
+                outgoing: []
+                total: 1
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/dependencies/session/{session_id}/blocking:
+    get:
+      tags: [dependencies]
+      summary: Get sessions blocking this session
+      description: |
+        Get list of sessions that are blocking this session (only unresolved dependencies).
+
+        **Use cases:**
+        - Determine why decision is blocked
+        - Find what needs to complete first
+      operationId: getBlockingSessions
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Blocking sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                  blocking_sessions:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                  count:
+                    type: integer
+                  is_blocked:
+                    type: boolean
+              example:
+                session_id: "550e8400-e29b-41d4-a716-446655440000"
+                blocking_sessions:
+                  - "550e8400-e29b-41d4-a716-446655440001"
+                  - "550e8400-e29b-41d4-a716-446655440002"
+                count: 2
+                is_blocked: true
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/dependencies/session/{session_id}/dependents:
+    get:
+      tags: [dependencies]
+      summary: Get sessions depending on this session
+      description: |
+        Get list of sessions waiting for this decision. Shows downstream impact.
+
+        **Use cases:**
+        - Understand downstream impact
+        - Prioritize high-impact decisions
+      operationId: getDependentSessions
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dependent sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                  dependent_sessions:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                  count:
+                    type: integer
+                  has_dependents:
+                    type: boolean
+              example:
+                session_id: "550e8400-e29b-41d4-a716-446655440000"
+                dependent_sessions:
+                  - "550e8400-e29b-41d4-a716-446655440010"
+                count: 1
+                has_dependents: true
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/dependencies/graph:
+    get:
+      tags: [dependencies]
+      summary: Get dependency graph
+      description: |
+        Retrieve complete dependency graph for organization with metrics,
+        critical paths, and bottleneck identification.
+
+        **Graph metrics:**
+        - Total nodes and edges
+        - Max depth (longest chain)
+        - Root/leaf nodes
+        - Blocked nodes
+
+        **Critical paths:** Longest dependency chains from root to leaf
+
+        **Bottleneck nodes:** Decisions with many dependents (high centrality)
+
+        **Performance:** Target <2s for 100 decisions, cached for 5 minutes
+      operationId: getDependencyGraph
+      parameters:
+        - name: organization_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: include_resolved
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include resolved dependencies in graph
+      responses:
+        '200':
+          description: Dependency graph retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DependencyGraph'
+              example:
+                organization_id: "550e8400-e29b-41d4-a716-446655440000"
+                nodes:
+                  - session_id: "550e8400-e29b-41d4-a716-446655440001"
+                    title: "Pricing Strategy"
+                    status: "complete"
+                    progress: 1.0
+                    blocked_by: []
+                    blocking:
+                      - "550e8400-e29b-41d4-a716-446655440002"
+                edges:
+                  - dependency_id: "550e8400-e29b-41d4-a716-446655440100"
+                    source_session_id: "550e8400-e29b-41d4-a716-446655440001"
+                    target_session_id: "550e8400-e29b-41d4-a716-446655440002"
+                    dependency_type: "blocks"
+                    description: "Pricing must complete first"
+                    created_by: "alice@example.com"
+                    created_at: "2025-01-31T12:00:00Z"
+                    resolved_at: null
+                critical_path:
+                  - "550e8400-e29b-41d4-a716-446655440001"
+                  - "550e8400-e29b-41d4-a716-446655440002"
+                  - "550e8400-e29b-41d4-a716-446655440003"
+                bottlenecks:
+                  - "550e8400-e29b-41d4-a716-446655440001"
+                graph_metrics:
+                  total_nodes: 10
+                  total_edges: 15
+                  max_depth: 3
+                  avg_fanout: 1.5
+                  blocked_count: 4
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== D4: Organizational Patterns ====================
+
+  /api/v1/patterns/organization/{organization_id}:
+    get:
+      tags: [patterns]
+      summary: Extract organizational patterns
+      description: |
+        Analyze completed decisions to identify success and failure patterns
+        by decision type, with actionable recommendations.
+
+        **Pattern types:**
+        - **Success**: Fast decisions with positive outcomes
+        - **Failure**: Slow decisions or poor satisfaction
+        - **Neutral**: Average performance
+
+        **Characteristics extracted:**
+        - Team size (small/large)
+        - Decision timeline (rapid/extended)
+        - Alignment mode preferences
+        - Stakeholder engagement
+
+        **Success factors:** Fast cycles, optimal team size, clear context, evidence-based
+
+        **Failure indicators:** Extended deliberation, large groups, decision fatigue
+
+        **Performance:** Target <3s for 90 days, cached for 1 hour
+      operationId: getOrganizationalPatterns
+      parameters:
+        - name: organization_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: lookback_days
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 7
+            maximum: 365
+            default: 90
+          description: Days of history to analyze
+        - name: min_sample_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 3
+          description: Minimum sessions per pattern
+      responses:
+        '200':
+          description: Patterns extracted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationalPatterns'
+              example:
+                organization_id: "550e8400-e29b-41d4-a716-446655440000"
+                analysis_period:
+                  start: "2024-11-01T00:00:00Z"
+                  end: "2025-01-31T00:00:00Z"
+                sample_size: 45
+                patterns:
+                  - pattern_id: "pricing_success"
+                    pattern_type: "success"
+                    decision_type: "pricing"
+                    sample_size: 8
+                    description: "Pricing decisions typically take 4.2 days with high quality"
+                    common_characteristics:
+                      - "Small team size (< 4 stakeholders)"
+                      - "Rapid decision cycle (< 3 days)"
+                      - "Clear pricing framework used"
+                    avg_metrics:
+                      avg_time_days: 4.2
+                      avg_stakeholders: 3.5
+                      avg_quality: 8.2
+                      avg_satisfaction: 8.5
+                    confidence: 0.75
+                    recommendations:
+                      - "Continue current approach for pricing decisions"
+                      - "Fast cycle time is a strength - maintain urgency"
+                      - "Document pricing framework for new teams"
+                best_practices:
+                  - "Fast decision cycles correlate with positive outcomes"
+                  - "Optimal team size (4-7 stakeholders) improves quality"
+                  - "Clear context and evidence improve satisfaction"
+                generated_at: "2025-01-31T12:00:00Z"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== D5: Advanced Analytics ====================
+
+  /api/v1/advanced-analytics/trends:
+    get:
+      tags: [advanced-analytics]
+      summary: Analyze metric trends
+      description: |
+        Perform trend analysis on decision metrics with forecasting and changepoint detection.
+
+        **Available metrics:**
+        - `decision_time`: Days from start to completion
+        - `quality_score`: Retrospective quality ratings
+        - `satisfaction_score`: Stakeholder satisfaction
+        - `stakeholder_count`: Number of participants
+
+        **Analysis includes:**
+        - Trend direction (increasing/decreasing/stable)
+        - Trend strength (R-squared 0-1)
+        - 7-day moving average
+        - 30-day forecast with confidence intervals
+        - Changepoints (significant inflection points)
+
+        **Statistical methods:**
+        - Linear regression for trends
+        - Simple moving average for smoothing
+        - T-test for changepoint detection
+        - Normal distribution for confidence intervals
+
+        **Performance:** Target <2s for 90 days, cached for 1 hour
+      operationId: analyzeMetricTrends
+      parameters:
+        - name: organization_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: metric_name
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [decision_time, quality_score, satisfaction_score, stakeholder_count]
+          description: Metric to analyze
+        - name: lookback_days
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 30
+            maximum: 365
+            default: 90
+          description: Days of history to analyze
+      responses:
+        '200':
+          description: Trend analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendAnalysis'
+              example:
+                metric: "decision_time"
+                period:
+                  start: "2024-11-01T00:00:00Z"
+                  end: "2025-01-31T00:00:00Z"
+                granularity: "weekly"
+                time_series:
+                  - timestamp: "2024-11-01T00:00:00Z"
+                    value: 5.2
+                    sample_size: 8
+                  - timestamp: "2024-11-08T00:00:00Z"
+                    value: 4.8
+                    sample_size: 6
+                moving_avg_3: [5.0, 4.9, 4.7]
+                moving_avg_6: [5.1, 5.0, 4.8]
+                trend:
+                  slope: -0.03
+                  intercept: 5.5
+                  r_squared: 0.72
+                  direction: "improving"
+                changepoints:
+                  - timestamp: "2024-12-15T00:00:00Z"
+                    magnitude: -0.8
+                    confidence: 0.85
+                    likely_cause: "Implemented decision playbooks"
+                forecast:
+                  - timestamp: "2025-02-07T00:00:00Z"
+                    predicted_value: 4.2
+                    confidence_interval_lower: 3.0
+                    confidence_interval_upper: 5.4
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/advanced-analytics/benchmarks:
+    get:
+      tags: [advanced-analytics]
+      summary: Get comparative benchmarks
+      description: |
+        Compare organization metrics vs. industry averages with percentile rankings.
+
+        **Benchmarked metrics:**
+        - Decision time (days)
+        - Quality score (1-10)
+        - Satisfaction score (1-10)
+        - Stakeholder count
+
+        **Provides:**
+        - Organization metrics vs. industry average
+        - Percentile rankings
+        - Identified strengths (top quartile)
+        - Improvement areas (bottom quartile)
+
+        **Performance:** Target <1s, cached for 4 hours
+
+        **Note:** Minimum 3 sessions required for meaningful comparison
+      operationId: getComparativeBenchmarks
+      parameters:
+        - name: organization_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: decision_type
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Decision type to benchmark
+          example: "pricing"
+        - name: lookback_days
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 30
+            maximum: 365
+            default: 90
+      responses:
+        '200':
+          description: Benchmarks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparativeBenchmark'
+              example:
+                organization_id: "550e8400-e29b-41d4-a716-446655440000"
+                compare_by: "decision_type"
+                group_metrics:
+                  pricing:
+                    group_id: "pricing"
+                    sample_size: 15
+                    avg_decision_time_days: 4.2
+                    avg_quality_rating: 8.5
+                    causal_validation_rate: 0.85
+                    ai_usage_rate: 0.68
+                rankings:
+                  decision_time:
+                    metric: "decision_time_days"
+                    percentile: 85
+                    rank: 15
+                    total_groups: 100
+                  quality:
+                    metric: "quality_score"
+                    percentile: 78
+                    rank: 22
+                    total_groups: 100
+                outliers:
+                  - group_id: "pricing"
+                    metric: "decision_time_days"
+                    value: 4.2
+                    deviation_from_mean: -2.5
+                    direction: "below"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== D6: Cross-Team Coordination ====================
+
+  /api/v1/coordination/groups:
+    post:
+      tags: [coordination]
+      summary: Create coordination group
+      description: |
+        Create a coordination group linking related decisions across multiple teams.
+
+        **Use cases:**
+        - Product + Engineering alignment
+        - Sales + Marketing coordination
+        - Cross-functional initiatives
+      operationId: createCoordinationGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+                - session_ids
+                - created_by
+              properties:
+                name:
+                  type: string
+                  description: Coordination group name
+                description:
+                  type: string
+                  description: Purpose of coordination
+                session_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Sessions to coordinate
+                created_by:
+                  type: string
+                  description: User creating the group
+            example:
+              name: "Q1 Product Launch"
+              description: "Coordinating pricing, marketing, and rollout decisions"
+              session_ids:
+                - "550e8400-e29b-41d4-a716-446655440001"
+                - "550e8400-e29b-41d4-a716-446655440002"
+                - "550e8400-e29b-41d4-a716-446655440003"
+              created_by: "alice@example.com"
+      responses:
+        '201':
+          description: Coordination group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoordinationGroup'
+              example:
+                group_id: "550e8400-e29b-41d4-a716-446655440100"
+                organization_id: "550e8400-e29b-41d4-a716-446655440000"
+                name: "Q1 Product Launch"
+                description: "Coordinating pricing, marketing, and rollout decisions"
+                session_ids:
+                  - "550e8400-e29b-41d4-a716-446655440001"
+                  - "550e8400-e29b-41d4-a716-446655440002"
+                  - "550e8400-e29b-41d4-a716-446655440003"
+                coordinator_id: "alice@example.com"
+                created_at: "2025-01-31T12:00:00Z"
+                status: "active"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/coordination/detect-conflicts:
+    post:
+      tags: [coordination]
+      summary: Detect conflicts between decisions
+      description: |
+        Analyze multiple decisions to detect conflicts requiring coordination.
+
+        **Conflict types:**
+        - **Temporal**: Overlapping timelines causing resource strain
+        - **Resource**: Same stakeholders overloaded across decisions
+        - **Dependency**: Circular or excessive dependency chains
+        - **Scope**: Overlapping decision boundaries
+
+        **Severity levels:**
+        - **high**: Requires immediate attention
+        - **medium**: Should be addressed soon
+        - **low**: Monitor for future impact
+
+        **Performance:** Target <1s for 10 decisions
+      operationId: detectConflicts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - session_ids
+              properties:
+                session_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+            example:
+              session_ids:
+                - "550e8400-e29b-41d4-a716-446655440001"
+                - "550e8400-e29b-41d4-a716-446655440002"
+                - "550e8400-e29b-41d4-a716-446655440003"
+      responses:
+        '200':
+          description: Conflict detection completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_ids:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                  conflicts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConflictDetection'
+                  total_conflicts:
+                    type: integer
+              example:
+                session_ids:
+                  - "550e8400-e29b-41d4-a716-446655440001"
+                  - "550e8400-e29b-41d4-a716-446655440002"
+                conflicts:
+                  - conflict_type: "resource"
+                    session_ids:
+                      - "550e8400-e29b-41d4-a716-446655440001"
+                      - "550e8400-e29b-41d4-a716-446655440002"
+                    description: "alice@example.com involved in 3 simultaneous decisions"
+                    severity: "high"
+                    resolution_suggestions:
+                      - "Stagger decision timelines"
+                      - "Delegate to alternate stakeholders"
+                      - "Prioritize most critical decision"
+                total_conflicts: 1
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/coordination/view:
+    get:
+      tags: [coordination]
+      summary: Get cross-team coordination view
+      description: |
+        Unified view of active decisions, conflicts, and coordination groups across teams.
+
+        **Provides:**
+        - All active decisions across teams
+        - Detected conflicts requiring resolution
+        - Existing coordination groups
+        - Coordination health status
+
+        **Use cases:**
+        - Executive dashboard
+        - PMO oversight
+        - Resource planning
+
+        **Performance:** Target <2s for 50 active decisions, cached for 5 minutes
+      operationId: getCoordinationView
+      parameters:
+        - name: organization_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: team_ids
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+          description: Filter by specific teams
+      responses:
+        '200':
+          description: Coordination view retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoordinationView'
+              example:
+                group:
+                  group_id: "550e8400-e29b-41d4-a716-446655440100"
+                  organization_id: "550e8400-e29b-41d4-a716-446655440000"
+                  name: "Q1 Launch Coordination"
+                  description: "Cross-team alignment"
+                  session_ids:
+                    - "550e8400-e29b-41d4-a716-446655440001"
+                    - "550e8400-e29b-41d4-a716-446655440002"
+                  coordinator_id: "alice@example.com"
+                  created_at: "2025-01-31T12:00:00Z"
+                  status: "active"
+                sessions:
+                  - session_id: "550e8400-e29b-41d4-a716-446655440001"
+                    title: "Pricing Strategy"
+                    status: "active"
+                shared_themes:
+                  - "Product launch"
+                  - "Q1 targets"
+                conflicts:
+                  - conflict_type: "temporal"
+                    session_ids:
+                      - "550e8400-e29b-41d4-a716-446655440001"
+                      - "550e8400-e29b-41d4-a716-446655440002"
+                    description: "Overlapping timelines"
+                    severity: "medium"
+                    resolution_suggestions:
+                      - "Stagger completion dates"
+                recommendations:
+                  - "Schedule cross-team alignment meeting"
+                  - "Resolve resource conflicts before proceeding"
+                coordination_health: 0.75
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/coordination/conflicts/{conflict_id}/resolve:
+    post:
+      tags: [coordination]
+      summary: Resolve conflict
+      description: |
+        Mark a conflict as resolved with resolution notes.
+
+        **Use cases:**
+        - After implementing resolution suggestions
+        - When conflict naturally resolved
+        - For documentation and learning
+      operationId: resolveConflict
+      parameters:
+        - name: conflict_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - resolution
+              properties:
+                resolution:
+                  type: string
+                  description: How the conflict was resolved
+            example:
+              resolution: "Staggered timelines - pricing decision moved to week 2"
+      responses:
+        '200':
+          description: Conflict resolved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  conflict_id:
+                    type: string
+                    format: uuid
+                  resolution:
+                    type: string
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ==================== Components ====================
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from authentication endpoint
+
+  schemas:
+    # D1: Portfolio Analytics
+
+    DateRange:
+      type: object
+      required:
+        - start
+        - end
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+
+    PortfolioMetrics:
+      type: object
+      required:
+        - avg_decision_time_days
+        - avg_quality_rating
+        - avg_satisfaction_score
+        - total_options_proposed
+        - total_ai_options_used
+        - causal_validation_success_rate
+        - minority_concern_validation_rate
+      properties:
+        avg_decision_time_days:
+          type: number
+          format: float
+          description: Average time to decision completion
+        avg_quality_rating:
+          type: number
+          format: float
+          description: Average retrospective quality rating
+        avg_satisfaction_score:
+          type: number
+          format: float
+          description: Average stakeholder satisfaction
+        total_options_proposed:
+          type: integer
+        total_ai_options_used:
+          type: integer
+        causal_validation_success_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        minority_concern_validation_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    DecisionCluster:
+      type: object
+      required:
+        - cluster_id
+        - theme
+        - session_ids
+        - avg_complexity
+        - common_stakeholders
+      properties:
+        cluster_id:
+          type: string
+        theme:
+          type: string
+          description: Common topic or theme
+        session_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        avg_complexity:
+          type: number
+          format: float
+        common_stakeholders:
+          type: array
+          items:
+            type: string
+
+    DecisionBottleneck:
+      type: object
+      required:
+        - bottleneck_type
+        - session_id
+        - description
+        - severity
+        - recommendation
+      properties:
+        bottleneck_type:
+          type: string
+          enum: [stuck_session, overloaded_stakeholder, validation_blocked]
+        session_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high]
+        recommendation:
+          type: string
+
+    PortfolioAnalysis:
+      type: object
+      required:
+        - organization_id
+        - period
+        - total_sessions
+        - active_sessions
+        - completed_sessions
+        - metrics
+        - clusters
+        - bottlenecks
+        - health_score
+        - strategic_insights
+        - generated_at
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        period:
+          $ref: '#/components/schemas/DateRange'
+        total_sessions:
+          type: integer
+        active_sessions:
+          type: integer
+        completed_sessions:
+          type: integer
+        metrics:
+          $ref: '#/components/schemas/PortfolioMetrics'
+        clusters:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionCluster'
+        bottlenecks:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionBottleneck'
+        health_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Overall portfolio health score
+        strategic_insights:
+          type: array
+          items:
+            type: string
+          description: CEE-generated strategic insights
+        generated_at:
+          type: string
+          format: date-time
+
+    PortfolioAnalysisResponse:
+      type: object
+      required:
+        - analysis
+      properties:
+        analysis:
+          $ref: '#/components/schemas/PortfolioAnalysis'
+        request_id:
+          type: string
+
+    # D2: Real-Time Collaboration
+
+    UserPresence:
+      type: object
+      required:
+        - user_id
+        - session_id
+        - joined_at
+        - last_seen
+      properties:
+        user_id:
+          type: string
+        session_id:
+          type: string
+          format: uuid
+        joined_at:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+
+    CollaborationAction:
+      type: object
+      required:
+        - action_type
+      properties:
+        action_type:
+          type: string
+          enum: [option_proposed, option_edited, vote_cast, concern_raised, typing_start, typing_stop, cursor_move]
+        target_id:
+          type: string
+          format: uuid
+        data:
+          type: object
+          additionalProperties:
+            type: string
+        persist:
+          type: boolean
+          default: true
+
+    SessionState:
+      type: object
+      required:
+        - session_id
+        - active_users
+        - recent_actions
+        - last_activity
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        active_users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserPresence'
+        recent_actions:
+          type: array
+          items:
+            type: object
+            description: Simplified action data
+        last_activity:
+          type: string
+          format: date-time
+
+    # D3: Decision Dependencies
+
+    DecisionDependency:
+      type: object
+      required:
+        - dependency_id
+        - source_session_id
+        - target_session_id
+        - dependency_type
+        - created_by
+        - created_at
+      properties:
+        dependency_id:
+          type: string
+          format: uuid
+        source_session_id:
+          type: string
+          format: uuid
+          description: Session that affects target
+        target_session_id:
+          type: string
+          format: uuid
+          description: Session that is affected
+        dependency_type:
+          type: string
+          enum: [blocks, depends_on, relates_to, supersedes]
+        description:
+          type: string
+          description: Why this dependency exists
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    DecisionNode:
+      type: object
+      required:
+        - session_id
+        - title
+        - status
+        - progress
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+        progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        blocked_by:
+          type: array
+          items:
+            type: string
+            format: uuid
+        blocking:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    GraphMetrics:
+      type: object
+      required:
+        - total_nodes
+        - total_edges
+        - max_depth
+        - avg_fanout
+        - blocked_count
+      properties:
+        total_nodes:
+          type: integer
+        total_edges:
+          type: integer
+        max_depth:
+          type: integer
+          description: Longest dependency chain
+        avg_fanout:
+          type: number
+          format: float
+          description: Average dependencies per session
+        blocked_count:
+          type: integer
+          description: Sessions currently blocked
+
+    DependencyGraph:
+      type: object
+      required:
+        - organization_id
+        - nodes
+        - edges
+        - critical_path
+        - bottlenecks
+        - graph_metrics
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionDependency'
+        critical_path:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Longest path through graph
+        bottlenecks:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Sessions blocking multiple others
+        graph_metrics:
+          $ref: '#/components/schemas/GraphMetrics'
+
+    # D4: Organizational Patterns
+
+    DecisionPattern:
+      type: object
+      required:
+        - pattern_id
+        - pattern_type
+        - decision_type
+        - sample_size
+        - description
+        - common_characteristics
+        - avg_metrics
+        - confidence
+      properties:
+        pattern_id:
+          type: string
+        pattern_type:
+          type: string
+          enum: [success, failure, neutral]
+        decision_type:
+          type: string
+        sample_size:
+          type: integer
+        description:
+          type: string
+          description: Human-readable pattern description
+        common_characteristics:
+          type: array
+          items:
+            type: string
+        avg_metrics:
+          type: object
+          additionalProperties:
+            type: number
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        recommendations:
+          type: array
+          items:
+            type: string
+
+    OrganizationalPatterns:
+      type: object
+      required:
+        - organization_id
+        - analysis_period
+        - sample_size
+        - patterns
+        - best_practices
+        - generated_at
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        analysis_period:
+          $ref: '#/components/schemas/DateRange'
+        sample_size:
+          type: integer
+        patterns:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionPattern'
+        best_practices:
+          type: array
+          items:
+            type: string
+          description: CEE-generated best practices
+        generated_at:
+          type: string
+          format: date-time
+
+    # D5: Advanced Analytics
+
+    DataPoint:
+      type: object
+      required:
+        - timestamp
+        - value
+        - sample_size
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: float
+        sample_size:
+          type: integer
+
+    TrendLine:
+      type: object
+      required:
+        - slope
+        - intercept
+        - r_squared
+        - direction
+      properties:
+        slope:
+          type: number
+          format: float
+          description: Trend direction (positive = improving)
+        intercept:
+          type: number
+          format: float
+        r_squared:
+          type: number
+          format: float
+          description: Fit quality (0-1)
+        direction:
+          type: string
+          enum: [improving, stable, declining]
+
+    Changepoint:
+      type: object
+      required:
+        - timestamp
+        - magnitude
+        - confidence
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        magnitude:
+          type: number
+          format: float
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        likely_cause:
+          type: string
+          nullable: true
+
+    ForecastPoint:
+      type: object
+      required:
+        - timestamp
+        - predicted_value
+        - confidence_interval_lower
+        - confidence_interval_upper
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        predicted_value:
+          type: number
+          format: float
+        confidence_interval_lower:
+          type: number
+          format: float
+        confidence_interval_upper:
+          type: number
+          format: float
+
+    TrendAnalysis:
+      type: object
+      required:
+        - metric
+        - period
+        - granularity
+        - time_series
+        - moving_avg_3
+        - moving_avg_6
+        - trend
+        - changepoints
+        - forecast
+      properties:
+        metric:
+          type: string
+        period:
+          $ref: '#/components/schemas/DateRange'
+        granularity:
+          type: string
+          enum: [weekly, monthly]
+        time_series:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataPoint'
+        moving_avg_3:
+          type: array
+          items:
+            type: number
+            format: float
+        moving_avg_6:
+          type: array
+          items:
+            type: number
+            format: float
+        trend:
+          $ref: '#/components/schemas/TrendLine'
+        changepoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Changepoint'
+        forecast:
+          type: array
+          items:
+            $ref: '#/components/schemas/ForecastPoint'
+
+    GroupMetrics:
+      type: object
+      required:
+        - group_id
+        - sample_size
+        - avg_decision_time_days
+        - avg_quality_rating
+        - causal_validation_rate
+        - ai_usage_rate
+      properties:
+        group_id:
+          type: string
+        sample_size:
+          type: integer
+        avg_decision_time_days:
+          type: number
+          format: float
+        avg_quality_rating:
+          type: number
+          format: float
+        causal_validation_rate:
+          type: number
+          format: float
+        ai_usage_rate:
+          type: number
+          format: float
+
+    PercentileRanking:
+      type: object
+      required:
+        - metric
+        - percentile
+        - rank
+        - total_groups
+      properties:
+        metric:
+          type: string
+        percentile:
+          type: integer
+          minimum: 0
+          maximum: 100
+        rank:
+          type: integer
+        total_groups:
+          type: integer
+
+    OutlierGroup:
+      type: object
+      required:
+        - group_id
+        - metric
+        - value
+        - deviation_from_mean
+        - direction
+      properties:
+        group_id:
+          type: string
+        metric:
+          type: string
+        value:
+          type: number
+          format: float
+        deviation_from_mean:
+          type: number
+          format: float
+        direction:
+          type: string
+          enum: [above, below]
+
+    ComparativeBenchmark:
+      type: object
+      required:
+        - organization_id
+        - compare_by
+        - group_metrics
+        - rankings
+        - outliers
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        compare_by:
+          type: string
+          enum: [team, decision_type, time_period]
+        group_metrics:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/GroupMetrics'
+        rankings:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/PercentileRanking'
+        outliers:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutlierGroup'
+
+    # D6: Cross-Team Coordination
+
+    CoordinationGroup:
+      type: object
+      required:
+        - group_id
+        - organization_id
+        - name
+        - session_ids
+        - coordinator_id
+        - created_at
+        - status
+      properties:
+        group_id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        session_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        coordinator_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, completed, archived]
+
+    ConflictDetection:
+      type: object
+      required:
+        - conflict_type
+        - session_ids
+        - description
+        - severity
+      properties:
+        conflict_type:
+          type: string
+          enum: [timeline, resource, assumption, goal]
+        session_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high]
+        resolution_suggestions:
+          type: array
+          items:
+            type: string
+
+    CoordinationView:
+      type: object
+      required:
+        - group
+        - sessions
+        - shared_themes
+        - conflicts
+        - recommendations
+        - coordination_health
+      properties:
+        group:
+          $ref: '#/components/schemas/CoordinationGroup'
+        sessions:
+          type: array
+          items:
+            type: object
+            description: Simplified session data
+        shared_themes:
+          type: array
+          items:
+            type: string
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConflictDetection'
+        recommendations:
+          type: array
+          items:
+            type: string
+        coordination_health:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    # Common error schema
+
+    Error:
+      type: object
+      required:
+        - error
+        - detail
+      properties:
+        error:
+          type: string
+          description: Error category
+        detail:
+          type: string
+          description: Human-readable error message
+        request_id:
+          type: string
+          description: Request ID for debugging
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "validation_error"
+            detail: "Invalid date range: end_date must be after start_date"
+            request_id: "req_abc123"
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "unauthorized"
+            detail: "Invalid or expired authentication token"
+
+    InsufficientData:
+      description: Insufficient data for analysis
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "insufficient_data"
+            detail: "No sessions found for the specified criteria. Minimum 3 sessions required."
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "internal_server_error"
+            detail: "An unexpected error occurred. Please try again or contact support."
+            request_id: "req_abc123"

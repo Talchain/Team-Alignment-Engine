@@ -1,0 +1,51 @@
+```mermaid
+sequenceDiagram
+    participant Client1 as Client 1 (Alice)
+    participant WS as WebSocket Server
+    participant Redis as Redis Pub/Sub
+    participant Client2 as Client 2 (Bob)
+
+    Note over Client1,Client2: Connection Phase
+    Client1->>WS: WebSocket connect (/ws/session-123?user_id=alice)
+    WS->>Redis: SADD session:123:users alice
+    WS->>Redis: SETEX session:123:user:alice 30 {metadata}
+    WS->>Redis: SUBSCRIBE session:123
+    WS->>Redis: PUBLISH session:123 {event: "presence_joined", user: "alice"}
+    WS-->>Client1: {event: "session_state", data: {...}}
+
+    Client2->>WS: WebSocket connect (/ws/session-123?user_id=bob)
+    WS->>Redis: SADD session:123:users bob
+    WS->>Redis: SUBSCRIBE session:123
+    WS->>Redis: PUBLISH session:123 {event: "presence_joined", user: "bob"}
+    Redis-->>WS: {event: "presence_joined", user: "bob"}
+    WS-->>Client1: {event: "presence_joined", user: "bob"}
+    WS-->>Client2: {event: "session_state", data: {...}}
+
+    Note over Client1,Client2: Heartbeat Phase (every 10s)
+    loop Every 10 seconds
+        Client1->>WS: {type: "heartbeat", timestamp: "..."}
+        WS->>Redis: EXPIRE session:123:user:alice 30
+        Client2->>WS: {type: "heartbeat", timestamp: "..."}
+        WS->>Redis: EXPIRE session:123:user:bob 30
+    end
+
+    Note over Client1,Client2: Action Broadcasting
+    Client1->>WS: {type: "action", action_type: "vote_cast", target_id: "option-1", data: {value: "strong"}}
+    WS->>Redis: PUBLISH session:123 {event: "collaboration_action", user: "alice", action: {...}}
+    WS->>Redis: LPUSH session:123:actions {...} (persist=true)
+    Redis-->>WS: Broadcast to all subscribers
+    WS-->>Client1: {event: "collaboration_action", ...}
+    WS-->>Client2: {event: "collaboration_action", ...}
+
+    Note over Client1,Client2: Disconnection Phase
+    Client1->>WS: WebSocket disconnect
+    WS->>Redis: SREM session:123:users alice
+    WS->>Redis: DEL session:123:user:alice
+    WS->>Redis: PUBLISH session:123 {event: "presence_left", user: "alice"}
+    Redis-->>WS: Broadcast disconnect
+    WS-->>Client2: {event: "presence_left", user: "alice"}
+
+    Note over Client1,Client2: Performance: <100ms broadcast latency (p95)
+```
+
+**Description**: WebSocket protocol flow showing presence tracking, Redis pub/sub messaging, heartbeat mechanism, and action broadcasting.

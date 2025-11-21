@@ -1,0 +1,41 @@
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as Portfolio API
+    participant Cache as Redis Cache
+    participant Service as PortfolioAnalyzer
+    participant DB as PostgreSQL
+    participant CEE as CEE Service
+
+    Client->>API: GET /api/v1/portfolio/analytics?org_id=123
+    API->>Cache: Check cache (key: portfolio:123:start:end)
+
+    alt Cache HIT
+        Cache-->>API: Return cached result
+        API-->>Client: 200 OK (cached, <200ms)
+    else Cache MISS
+        Cache-->>API: No cached result
+        API->>Service: generate_portfolio_view(org_id, filters)
+
+        Service->>DB: Query sessions with filters
+        Note over DB: SELECT * FROM sessions<br/>WHERE org_id = ?<br/>AND created_at BETWEEN ?<br/>WITH JOIN options, votes
+        DB-->>Service: List[Session] (45 sessions)
+
+        Service->>Service: Calculate metrics<br/>(avg time, quality, satisfaction)
+        Service->>Service: Cluster analysis<br/>(TF-IDF + K-means)
+        Service->>Service: Detect bottlenecks<br/>(rule-based heuristics)
+        Service->>Service: Calculate health score<br/>(0.4*velocity + 0.3*quality + 0.3*engagement)
+
+        Service->>CEE: Generate strategic insights
+        Note over CEE: LLM prompt with<br/>portfolio context
+        CEE-->>Service: List[insight]
+
+        Service-->>API: PortfolioAnalysis object
+        API->>Cache: Store result (TTL: 5 minutes)
+        API-->>Client: 200 OK (2.1s)
+    end
+
+    Note over Client,CEE: Performance: p95 latency = 2.1s for 100 sessions
+```
+
+**Description**: Portfolio analytics request-response flow showing cache-first strategy, database aggregation, clustering analysis, and CEE integration.

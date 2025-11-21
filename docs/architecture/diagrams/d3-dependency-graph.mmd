@@ -1,0 +1,45 @@
+```mermaid
+graph TD
+    subgraph "Example Dependency Graph"
+        A[Pricing Strategy<br/>Status: Complete<br/>Progress: 100%]
+        B[Feature Scope<br/>Status: Active<br/>Progress: 80%]
+        C[Marketing Plan<br/>Status: Pending<br/>Progress: 0%<br/>🔒 BLOCKED]
+        D[Launch Timeline<br/>Status: Pending<br/>Progress: 0%<br/>🔒 BLOCKED]
+        E[Budget Allocation<br/>Status: Active<br/>Progress: 60%]
+        F[Resource Assignment<br/>Status: Pending<br/>Progress: 0%<br/>🔒 BLOCKED]
+    end
+
+    A -->|blocks| B
+    A -->|blocks| E
+    B -->|blocks| C
+    B -->|blocks| D
+    E -->|blocks| F
+    C -->|relates_to| D
+
+    subgraph "Graph Metrics"
+        M[Total Nodes: 6<br/>Total Edges: 6<br/>Max Depth: 3<br/>Blocked Nodes: 3<br/>Bottleneck: Pricing Strategy]
+    end
+
+    subgraph "Critical Path (Longest Chain)"
+        CP[A → B → C<br/>3 decisions, 21 days estimated]
+    end
+
+    subgraph "Bottleneck Detection"
+        BN[Pricing Strategy<br/>Betweenness Centrality: 0.67<br/>Blocks: 5 downstream decisions]
+    end
+
+    style A fill:#4caf50,color:#fff
+    style B fill:#ff9800,color:#fff
+    style C fill:#f44336,color:#fff
+    style D fill:#f44336,color:#fff
+    style E fill:#ff9800,color:#fff
+    style F fill:#f44336,color:#fff
+    style M fill:#e3f2fd,stroke:#1976d2
+    style CP fill:#fff3e0,stroke:#f57c00
+    style BN fill:#fce4ec,stroke:#c2185b
+
+```
+
+**Description**: Example dependency graph showing decision nodes, dependency edges, blocked sessions, critical path, and bottleneck identification.
+
+**Algorithm**: Depth-first search for cycle detection, NetworkX longest_path for critical path, betweenness centrality for bottlenecks.

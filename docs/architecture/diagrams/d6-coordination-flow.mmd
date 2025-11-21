@@ -1,0 +1,62 @@
+```mermaid
+flowchart TD
+    Start([API Request: POST /detect-conflicts]) --> Input[Input: session_ids<br/>session-A, session-B, session-C]
+
+    Input --> QuerySessions[Query Session Details<br/>SELECT * FROM sessions<br/>WHERE id IN ...]
+
+    QuerySessions --> Sessions[3 Sessions Retrieved<br/>- Pricing Strategy'Product Team<br/>- Marketing Plan'Marketing Team<br/>- Feature Roadmap'Engineering Team]
+
+    Sessions --> Temporal[🕒 Temporal Conflict Detection<br/>Check for overlapping timelines<br/>+ shared stakeholders]
+    Sessions --> Resource[👥 Resource Conflict Detection<br/>Count active sessions per stakeholder]
+    Sessions --> Dependency[🔗 Dependency Conflict Detection<br/>Check for circular dependencies]
+    Sessions --> Scope[📋 Scope Conflict Detection<br/>TF-IDF similarity analysis]
+
+    Temporal --> TResult{Conflicts<br/>Found?}
+    Resource --> RResult{Conflicts<br/>Found?}
+    Dependency --> DResult{Conflicts<br/>Found?}
+    Scope --> SResult{Conflicts<br/>Found?}
+
+    TResult -->|Yes| TC[❌ TEMPORAL CONFLICT<br/>Severity: Medium<br/>Pricing + Marketing overlap 8 days<br/>Shared: alice@example.com]
+    TResult -->|No| TSkip[✅ No temporal conflicts]
+
+    RResult -->|Yes| RC[❌ RESOURCE CONFLICT<br/>Severity: High<br/>alice@example.com in 3 simultaneous decisions<br/>Overloaded: >5 sessions]
+    RResult -->|No| RSkip[✅ No resource conflicts]
+
+    DResult -->|Yes| DC[❌ DEPENDENCY CONFLICT<br/>Severity: High<br/>Circular dependency detected:<br/>A → B → C → A]
+    DResult -->|No| DSkip[✅ No dependency conflicts]
+
+    SResult -->|Yes| SC[❌ SCOPE CONFLICT<br/>Severity: Low<br/>Pricing + Marketing<br/>Similarity: 0.75 overlapping keywords]
+    SResult -->|No| SSkip[✅ No scope conflicts]
+
+    TC --> Suggestions
+    RC --> Suggestions
+    DC --> Suggestions
+    SC --> Suggestions
+
+    TSkip --> Combine
+    RSkip --> Combine
+    DSkip --> Combine
+    SSkip --> Combine
+
+    Suggestions[Generate Resolution Suggestions<br/>- Temporal: Stagger timelines by 2 weeks<br/>- Resource: Delegate to alternate stakeholders<br/>- Dependency: Break circular dep at weakest link<br/>- Scope: Merge related decisions]
+
+    Suggestions --> CEE[Call CEE Service<br/>Generate coordination recommendations<br/>based on detected conflicts]
+
+    CEE --> Combine[Combine Conflict Results]
+
+    Combine --> Cache[Cache Results<br/>TTL: 5 minutes]
+
+    Cache --> Return([Return ConflictDetection<br/>total_conflicts: 3<br/>severity breakdown])
+
+    style TC fill:#f44336,color:#fff
+    style RC fill:#f44336,color:#fff
+    style DC fill:#f44336,color:#fff
+    style SC fill:#ff9800,color:#fff
+    style TSkip fill:#4caf50,color:#fff
+    style RSkip fill:#4caf50,color:#fff
+    style DSkip fill:#4caf50,color:#fff
+    style SSkip fill:#4caf50,color:#fff
+    style CEE fill:#2196f3,color:#fff
+```
+
+**Description**: Cross-team coordination conflict detection flow showing four conflict types (temporal, resource, dependency, scope), severity classification, resolution suggestions, and CEE recommendations.

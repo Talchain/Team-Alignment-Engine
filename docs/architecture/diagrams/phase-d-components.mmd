@@ -1,0 +1,94 @@
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        WEB[Web UI]
+        MOBILE[Mobile App]
+        API_CLIENT[API Clients]
+    end
+
+    subgraph "API Layer - FastAPI Routers"
+        PORTFOLIO[D1: Portfolio Analytics<br/>/api/v1/portfolio]
+        COLLAB[D2: Real-Time Collaboration<br/>/api/v1/collaboration]
+        DEPS[D3: Decision Dependencies<br/>/api/v1/dependencies]
+        PATTERNS[D4: Organizational Patterns<br/>/api/v1/patterns]
+        ANALYTICS[D5: Advanced Analytics<br/>/api/v1/advanced-analytics]
+        COORD[D6: Cross-Team Coordination<br/>/api/v1/coordination]
+    end
+
+    subgraph "Service Layer - Business Logic"
+        PA[PortfolioAnalyzer]
+        CM[CollaborationManager]
+        DDM[DecisionDependencyManager]
+        PAT[PatternAnalyzer]
+        AAE[AdvancedAnalyticsEngine]
+        CTC[CrossTeamCoordinator]
+    end
+
+    subgraph "Data Layer"
+        PG[(PostgreSQL<br/>Primary Data Store)]
+        REDIS[(Redis<br/>Cache + PubSub)]
+        CEE[CEE Service<br/>AI Insights]
+    end
+
+    subgraph "Monitoring"
+        PROM[Prometheus<br/>Metrics]
+        GRAF[Grafana<br/>Dashboards]
+    end
+
+    %% Client to API connections
+    WEB --> PORTFOLIO
+    WEB --> COLLAB
+    WEB --> DEPS
+    MOBILE --> COLLAB
+    API_CLIENT --> ANALYTICS
+
+    %% API to Service connections
+    PORTFOLIO --> PA
+    COLLAB --> CM
+    DEPS --> DDM
+    PATTERNS --> PAT
+    ANALYTICS --> AAE
+    COORD --> CTC
+
+    %% Service to Data connections
+    PA --> PG
+    PA --> REDIS
+    PA --> CEE
+
+    CM --> REDIS
+
+    DDM --> PG
+    DDM --> REDIS
+
+    PAT --> PG
+    PAT --> REDIS
+    PAT --> CEE
+
+    AAE --> PG
+    AAE --> REDIS
+
+    CTC --> PG
+    CTC --> REDIS
+    CTC --> CEE
+
+    %% Monitoring connections
+    PORTFOLIO -.-> PROM
+    COLLAB -.-> PROM
+    DEPS -.-> PROM
+    PATTERNS -.-> PROM
+    ANALYTICS -.-> PROM
+    COORD -.-> PROM
+    PROM --> GRAF
+
+    classDef apiLayer fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef serviceLayer fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef dataLayer fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef monitoring fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+
+    class PORTFOLIO,COLLAB,DEPS,PATTERNS,ANALYTICS,COORD apiLayer
+    class PA,CM,DDM,PAT,AAE,CTC serviceLayer
+    class PG,REDIS,CEE dataLayer
+    class PROM,GRAF monitoring
+```
+
+**Description**: High-level component architecture showing Phase D capabilities (D1-D6), service layer orchestration, and data/integration dependencies.

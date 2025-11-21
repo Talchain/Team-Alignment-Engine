@@ -1,0 +1,47 @@
+```mermaid
+flowchart TD
+    Start([API Request: GET /patterns/organization/123]) --> Query
+    Query[Query Completed Sessions<br/>Last 90 days<br/>FROM sessions WHERE status='completed'<br/>AND created_at > NOW() - INTERVAL '90 days'] --> Group
+
+    Group[Group by Decision Type] --> TypeLoop{For Each<br/>Decision Type}
+
+    TypeLoop -->|Pricing| CalcP[Calculate Metrics<br/>- Avg Time: 4.2 days<br/>- Avg Stakeholders: 3.5<br/>- Avg Quality: 8.2<br/>- Sample Size: 8]
+    TypeLoop -->|Feature| CalcF[Calculate Metrics]
+    TypeLoop -->|Hiring| CalcH[Calculate Metrics]
+
+    CalcP --> ClassifyP{Classify Pattern}
+    CalcF --> ClassifyF{Classify Pattern}
+    CalcH --> ClassifyH{Classify Pattern}
+
+    ClassifyP -->|Quality >7<br/>Time <7 days| SuccessP[✅ SUCCESS Pattern<br/>pricing_success]
+    ClassifyF -->|Quality <6<br/>Time >14 days| FailureF[❌ FAILURE Pattern<br/>feature_failure]
+    ClassifyH -->|Between thresholds| NeutralH[➖ NEUTRAL Pattern<br/>hiring_neutral]
+
+    SuccessP --> CharP[Extract Characteristics<br/>- Small team size <4<br/>- Rapid cycle <3 days<br/>- Clear framework used]
+    FailureF --> CharF[Extract Characteristics<br/>- Large team size >10<br/>- Extended cycle >14 days<br/>- Unclear requirements]
+    NeutralH --> CharH[Extract Characteristics<br/>- Medium team size 4-7<br/>- Normal cycle 3-7 days]
+
+    CharP --> ConfP[Calculate Confidence<br/>sample_size=8 → confidence=0.75]
+    CharF --> ConfF[Calculate Confidence]
+    CharH --> ConfH[Calculate Confidence]
+
+    ConfP --> RecP[Generate Recommendations<br/>- Continue current approach<br/>- Maintain fast cycle time<br/>- Document pricing framework]
+    ConfF --> RecF[Generate Recommendations]
+    ConfH --> RecH[Generate Recommendations]
+
+    RecP --> Combine[Combine All Patterns]
+    RecF --> Combine
+    RecH --> Combine
+
+    Combine --> CEE[Call CEE Service<br/>Generate Best Practices<br/>from identified patterns]
+    CEE --> Cache[Cache Results<br/>TTL: 1 hour<br/>Key: patterns:123:90]
+    Cache --> Return([Return OrganizationalPatterns])
+
+    style SuccessP fill:#4caf50,color:#fff
+    style FailureF fill:#f44336,color:#fff
+    style NeutralH fill:#ff9800,color:#fff
+    style CEE fill:#2196f3,color:#fff
+    style Cache fill:#9c27b0,color:#fff
+```
+
+**Description**: Pattern extraction flow showing session querying, grouping by type, metric calculation, pattern classification, characteristic extraction, and CEE best practices generation.
