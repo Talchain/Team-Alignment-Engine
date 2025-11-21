@@ -1,0 +1,69 @@
+# Prometheus Configuration for TAE Phase D Monitoring
+# Optimized for pilot deployment (15-40 users, 3-5 teams)
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'tae-staging'
+    environment: 'pilot'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
+# Load alert rules
+rule_files:
+  - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # TAE Phase D service
+  - job_name: 'tae-phase-d'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'team-alignment-engine'
+          phase: 'd'
+          version: '2.0.0'
+
+  # PostgreSQL exporter (optional)
+  - job_name: 'postgres'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          database: 'tae-staging'
+
+  # Redis exporter (optional)
+  - job_name: 'redis'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          cache: 'tae-redis'
+
+  # Node exporter for system metrics (optional)
+  - job_name: 'node'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+# Remote write configuration (for long-term storage)
+# remote_write:
+#   - url: 'https://prometheus-remote-storage.olumi.com/write'
+#     basic_auth:
+#       username: 'tae-pilot'
+#       password: 'CHANGEME'
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention:
+      time: 30d
+      size: 10GB

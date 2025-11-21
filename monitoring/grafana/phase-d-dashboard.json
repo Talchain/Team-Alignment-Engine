@@ -1,0 +1,304 @@
+{
+  "dashboard": {
+    "title": "TAE Phase D - Organizational Intelligence",
+    "tags": ["tae", "phase-d", "production"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "D1: Portfolio Analytics Performance",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(tae_portfolio_query_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 latency",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(tae_portfolio_query_duration_seconds_bucket[5m]))",
+            "legendFormat": "p50 latency",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Portfolio Health Scores by Organization",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "tae_portfolio_health_score",
+            "legendFormat": "{{organization_id}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.5, "color": "yellow"},
+                {"value": 0.8, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "D2: WebSocket Active Connections",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(tae_websocket_connections_active) by (session_id)",
+            "legendFormat": "Session {{session_id}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "WebSocket Broadcast Latency",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(tae_websocket_broadcast_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 broadcast latency",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Collaboration Actions by Type",
+        "type": "graph",
+        "gridPos": {"x": 16, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(tae_collaboration_actions_broadcasted_total[5m])) by (action_type)",
+            "legendFormat": "{{action_type}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "D3: Dependency Graph Complexity",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "tae_dependency_graph_nodes",
+            "legendFormat": "Total nodes",
+            "refId": "A"
+          },
+          {
+            "expr": "tae_dependency_graph_edges",
+            "legendFormat": "Total edges",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Circular Dependencies Detected",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 16, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(tae_dependency_circular_detected_total[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Dependency Resolution Time",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 16, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(tae_dependency_resolution_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 resolution time",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "D4: Pattern Analysis Cache Hit Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 24, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(tae_pattern_cache_hits_total[5m]) / (rate(tae_pattern_cache_hits_total[5m]) + rate(tae_pattern_cache_misses_total[5m]))",
+            "legendFormat": "Cache hit rate",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Patterns Extracted per Organization",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 24, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(tae_patterns_extracted_total) by (organization_id)",
+            "legendFormat": "Org {{organization_id}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Pattern Analysis Duration",
+        "type": "graph",
+        "gridPos": {"x": 16, "y": 24, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(tae_pattern_analysis_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 analysis time",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "D5: Trend Analysis Requests",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 32, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(tae_trend_analysis_requests_total[5m])",
+            "legendFormat": "Requests/sec",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Forecast Accuracy",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 32, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "tae_forecast_accuracy_score",
+            "legendFormat": "{{metric_name}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "unit": "percentunit"
+          }
+        }
+      },
+      {
+        "id": 14,
+        "title": "D6: Cross-Team Conflicts Detected",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 40, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(tae_conflicts_detected_total[5m])) by (conflict_type)",
+            "legendFormat": "{{conflict_type}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Coordination Groups Active",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 40, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(tae_coordination_groups_active)",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "Conflict Resolution Time",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 40, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(tae_conflict_resolution_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 resolution time",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "System Health Overview",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 48, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "up{job=\"tae-phase-d\"}",
+            "legendFormat": "Service Status",
+            "refId": "A",
+            "format": "table"
+          }
+        ]
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "changes(tae_portfolio_health_score[5m]) > 0.1",
+          "name": "Health Score Changes",
+          "titleFormat": "Portfolio Health Changed"
+        }
+      ]
+    }
+  }
+}

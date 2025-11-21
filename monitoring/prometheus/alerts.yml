@@ -1,0 +1,165 @@
+groups:
+  - name: phase_d_critical
+    interval: 30s
+    rules:
+      - alert: PortfolioQueryLatencyHigh
+        expr: histogram_quantile(0.95, rate(tae_portfolio_query_duration_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: critical
+          phase: d1
+        annotations:
+          summary: "Portfolio analytics queries exceeding 10s p95 (target <5s)"
+          description: "Portfolio query p95 latency is {{ $value }}s for {{ $labels.organization_id }}"
+
+      - alert: DatabaseConnectionFailed
+        expr: up{job="tae-phase-d"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "TAE service is down"
+          description: "TAE Phase D service has been down for more than 1 minute"
+
+      - alert: RedisConnectionFailed
+        expr: tae_redis_connection_errors_total > 10
+        for: 5m
+        labels:
+          severity: critical
+          phase: d2
+        annotations:
+          summary: "Redis connection failures detected"
+          description: "{{ $value }} Redis connection errors in the last 5 minutes"
+
+      - alert: WebSocketBroadcastLatencyHigh
+        expr: histogram_quantile(0.95, rate(tae_websocket_broadcast_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          phase: d2
+        annotations:
+          summary: "WebSocket broadcast latency exceeding 500ms (target <100ms)"
+          description: "WebSocket broadcast p95 is {{ $value }}ms"
+
+      - alert: CircularDependenciesDetected
+        expr: increase(tae_dependency_circular_detected_total[1h]) > 5
+        for: 10m
+        labels:
+          severity: warning
+          phase: d3
+        annotations:
+          summary: "Multiple circular dependencies detected"
+          description: "{{ $value }} circular dependencies detected in the last hour"
+
+      - alert: DependencyGraphTimeout
+        expr: rate(tae_dependency_graph_timeout_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          phase: d3
+        annotations:
+          summary: "Dependency graph computation timeouts"
+          description: "Dependency graph timeouts at {{ $value }}/sec"
+
+      - alert: PatternAnalysisErrors
+        expr: rate(tae_pattern_analysis_errors_total[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          phase: d4
+        annotations:
+          summary: "Pattern analysis errors increasing"
+          description: "Pattern analysis error rate: {{ $value }}/sec"
+
+      - alert: PortfolioHealthScoreLow
+        expr: tae_portfolio_health_score < 0.5
+        for: 15m
+        labels:
+          severity: warning
+          phase: d1
+        annotations:
+          summary: "Portfolio health score below 0.5"
+          description: "Organization {{ $labels.organization_id }} health score is {{ $value }}"
+
+  - name: phase_d_performance
+    interval: 1m
+    rules:
+      - alert: HighPortfolioBottlenecks
+        expr: sum(tae_portfolio_bottlenecks_detected{severity="high"}) by (organization_id) > 3
+        for: 10m
+        labels:
+          severity: warning
+          phase: d1
+        annotations:
+          summary: "High-severity bottlenecks detected"
+          description: "{{ $value }} high-severity bottlenecks for organization {{ $labels.organization_id }}"
+
+      - alert: WebSocketConnectionsExceeded
+        expr: sum(tae_websocket_connections_active) by (session_id) > 50
+        for: 5m
+        labels:
+          severity: warning
+          phase: d2
+        annotations:
+          summary: "WebSocket connection limit approaching"
+          description: "Session {{ $labels.session_id }} has {{ $value }} active connections (limit 50)"
+
+      - alert: ConflictResolutionSlow
+        expr: histogram_quantile(0.95, rate(tae_conflict_resolution_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+          phase: d6
+        annotations:
+          summary: "Conflict resolution taking >2s"
+          description: "Conflict resolution p95 is {{ $value }}s"
+
+      - alert: TrendAnalysisLatencyHigh
+        expr: histogram_quantile(0.95, rate(tae_trend_analysis_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          phase: d5
+        annotations:
+          summary: "Trend analysis exceeding 5s target (goal <2s)"
+          description: "Trend analysis p95 latency is {{ $value }}s"
+
+  - name: phase_d_capacity
+    interval: 5m
+    rules:
+      - alert: DatabasePoolExhausted
+        expr: tae_database_pool_size - tae_database_pool_available < 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "Only {{ $value }} database connections available"
+
+      - alert: RedisPoolExhausted
+        expr: tae_redis_pool_size - tae_redis_pool_available < 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis connection pool nearly exhausted"
+          description: "Only {{ $value }} Redis connections available"
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 / 1024 > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TAE memory usage exceeding 2GB"
+          description: "Memory usage is {{ $value }}GB"
+
+      - alert: CacheMissRateHigh
+        expr: rate(tae_pattern_cache_misses_total[5m]) / (rate(tae_pattern_cache_hits_total[5m]) + rate(tae_pattern_cache_misses_total[5m])) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          phase: d4
+        annotations:
+          summary: "Pattern analysis cache miss rate >50%"
+          description: "Cache miss rate is {{ $value | humanizePercentage }}"
