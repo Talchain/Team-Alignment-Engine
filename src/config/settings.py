@@ -1,7 +1,8 @@
 """Application configuration settings."""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Union
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -47,10 +48,18 @@ class Settings(BaseSettings):
     enable_metrics: bool = True
 
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000"]
+    cors_origins: Union[str, List[str]] = "http://localhost:3000"
+
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from comma-separated string or list."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
 
     def get_cors_origins(self) -> List[str]:
-        """Parse CORS origins from comma-separated string or list."""
+        """Get CORS origins as list."""
         if isinstance(self.cors_origins, str):
             return [origin.strip() for origin in self.cors_origins.split(",")]
         return self.cors_origins
