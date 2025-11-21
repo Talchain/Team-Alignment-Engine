@@ -11,6 +11,9 @@ from src.api.routes.phase_c import router as phase_c_router
 from src.api.routes.portfolio import router as portfolio_router
 from src.api.routes.collaboration import router as collaboration_router
 from src.api.routes.dependencies import router as dependencies_router
+from src.api.routes.patterns import router as patterns_router
+from src.api.routes.coordination import router as coordination_router
+from src.api.routes.analytics import router as advanced_analytics_router
 
 __all__ = [
     "health_router",
@@ -24,4 +27,7 @@ __all__ = [
     "portfolio_router",
     "collaboration_router",
     "dependencies_router",
+    "patterns_router",
+    "coordination_router",
+    "advanced_analytics_router",
 ]

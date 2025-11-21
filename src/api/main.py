@@ -23,6 +23,9 @@ from src.api.routes import (
     portfolio_router,
     collaboration_router,
     dependencies_router,
+    patterns_router,
+    coordination_router,
+    advanced_analytics_router,
 )
 from src.api.metrics import MetricsMiddleware, metrics_endpoint
 from src.storage import init_db, init_cache
@@ -74,6 +77,9 @@ app.include_router(phase_c_router)  # Phase C: Intelligent Assistance
 app.include_router(portfolio_router)  # Phase D1: Portfolio Analytics
 app.include_router(collaboration_router)  # Phase D2: Real-time Collaboration
 app.include_router(dependencies_router)  # Phase D3: Decision Dependencies
+app.include_router(patterns_router)  # Phase D4: Organizational Patterns
+app.include_router(advanced_analytics_router)  # Phase D5: Advanced Analytics
+app.include_router(coordination_router)  # Phase D6: Cross-Team Coordination
 
 # Add metrics endpoint
 app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["monitoring"])
