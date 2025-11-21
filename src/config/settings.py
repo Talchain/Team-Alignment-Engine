@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Service
     service_name: str = "team-alignment-engine"
-    service_version: str = "1.0.0"
+    service_version: str = "2.0.0"  # Phase D complete + PLoT integration
     environment: str = "development"
     log_level: str = "INFO"
 
@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     isl_base_url: str
     isl_api_key: str
     isl_timeout: int = 60
+
+    # PLoT Integration (POC v02)
+    plot_deployment_mode: bool = False  # Set to True for PLoT-orchestrated mode
+    plot_internal_api_key: str = ""  # Internal API key for PLoT → TAE auth
+    plot_orchestration_timeout: int = 10  # Timeout for orchestration endpoint (seconds)
+    plot_capability_filtering: bool = True  # Enable capability-based filtering
 
     # Security
     jwt_secret: str
@@ -65,13 +71,13 @@ class Settings(BaseSettings):
     dependency_graph_timeout: int = 5  # seconds
     portfolio_query_timeout: int = 10  # seconds
 
-    # Phase D: Feature Flags
-    feature_portfolio_analytics_enabled: bool = True
-    feature_realtime_collaboration_enabled: bool = True
-    feature_decision_dependencies_enabled: bool = True
-    feature_organizational_patterns_enabled: bool = True
-    feature_advanced_analytics_enabled: bool = True
-    feature_cross_team_coordination_enabled: bool = True
+    # Phase D: Feature Flags (POC v02 Priorities from Q6 Decision)
+    feature_portfolio_analytics_enabled: bool = True  # D1 - MUST HAVE
+    feature_realtime_collaboration_enabled: bool = False  # D2 - DEFERRED (HTTP polling only)
+    feature_decision_dependencies_enabled: bool = True  # D3 - MUST HAVE
+    feature_organizational_patterns_enabled: bool = True  # D4 - MUST HAVE
+    feature_advanced_analytics_enabled: bool = False  # D5 - DEFERRED
+    feature_cross_team_coordination_enabled: bool = False  # D6 - DEFERRED
 
     # Phase D: CEE Mock Configuration
     cee_use_mock: bool = True  # Set to false when real CEE ready

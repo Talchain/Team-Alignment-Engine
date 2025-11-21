@@ -14,6 +14,7 @@ from src.api.routes.dependencies import router as dependencies_router
 from src.api.routes.patterns import router as patterns_router
 from src.api.routes.coordination import router as coordination_router
 from src.api.routes.analytics import router as advanced_analytics_router
+from src.api.routes.plot_orchestration import router as plot_orchestration_router
 
 __all__ = [
     "health_router",
@@ -30,4 +31,5 @@ __all__ = [
     "patterns_router",
     "coordination_router",
     "advanced_analytics_router",
+    "plot_orchestration_router",
 ]
