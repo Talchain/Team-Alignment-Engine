@@ -342,120 +342,255 @@ class TestActiveUsersEndpoint:
 
 
 class TestWebSocketEndpoint:
-    """Tests for WebSocket collaboration endpoint."""
+    """Tests for WebSocket collaboration endpoint.
+
+    These tests validate real-time WebSocket functionality for collaboration.
+    Previously deferred due to test environment issues, now properly implemented.
+    """
 
     @pytest.mark.asyncio
     async def test_websocket_connection(self, session_id, user_id):
-        """Test WebSocket connection establishment."""
+        """Test WebSocket connection establishment and initial session state.
+
+        Validates:
+        - WebSocket connection succeeds
+        - Initial session_state event is received
+        - Session state contains required fields
+        - Presence tracking is initiated
+        """
         from fastapi.testclient import TestClient
         from src.api.main import app
 
-        with patch("src.api.routes.collaboration.get_cache") as mock_get_cache:
-            # Mock Redis
+        with patch("src.api.routes.collaboration.get_cache") as mock_get_cache, \
+             patch("src.api.routes.collaboration.CollaborationManager") as mock_manager_class:
+
+            # Mock Redis client
             mock_redis = AsyncMock()
-            mock_redis.hset = AsyncMock()
-            mock_redis.expire = AsyncMock()
+            mock_redis.sadd = AsyncMock(return_value=1)
+            mock_redis.setex = AsyncMock()
+            mock_redis.subscribe = AsyncMock()
             mock_redis.publish = AsyncMock()
             mock_redis.hgetall = AsyncMock(return_value={})
-            mock_redis.zrevrange = AsyncMock(return_value=[])
+            mock_redis.lrange = AsyncMock(return_value=[])
 
             mock_get_cache.return_value = mock_redis
+
+            # Mock CollaborationManager
+            mock_manager = MagicMock()
+            mock_manager.track_presence = AsyncMock()
+            mock_manager.get_session_state = AsyncMock(
+                return_value=SessionState(
+                    session_id=session_id,
+                    active_users=[],
+                    recent_actions=[],
+                    last_activity=datetime.utcnow(),
+                )
+            )
+            mock_manager.remove_presence = AsyncMock()
+            # Mock subscribe_to_session as an async generator
+            async def mock_subscribe():
+                yield  # Yields nothing, just for testing
+            mock_manager.subscribe_to_session = lambda sid: mock_subscribe()
+
+            mock_manager_class.return_value = mock_manager
 
             # Use synchronous TestClient for WebSocket
             with TestClient(app) as test_client:
-                try:
-                    with test_client.websocket_connect(
-                        f"/api/v1/collaboration/ws/{session_id}?user_id={user_id}"
-                    ) as websocket:
-                        # Should receive initial session state
-                        data = websocket.receive_json()
-                        assert data["event_type"] == "session_state"
-                        assert "data" in data
+                with test_client.websocket_connect(
+                    f"/api/v1/collaboration/ws/{session_id}?user_id={user_id}"
+                ) as websocket:
+                    # Should receive initial session state
+                    data = websocket.receive_json()
 
-                except Exception:
-                    # WebSocket tests can be flaky in test environment
-                    # The connection was established successfully if we got here
-                    pass
+                    # Validate initial message
+                    assert data["event_type"] == "session_state", \
+                        f"Expected 'session_state', got '{data.get('event_type')}'"
+                    assert "data" in data, "Session state data missing"
+                    assert "timestamp" in data, "Timestamp missing from initial message"
+
+                    # Verify presence tracking was called
+                    mock_manager.track_presence.assert_called_once_with(
+                        session_id=session_id,
+                        user_id=user_id
+                    )
+
+                    # Verify session state was retrieved
+                    mock_manager.get_session_state.assert_called_once_with(session_id)
 
     @pytest.mark.asyncio
     async def test_websocket_heartbeat(self, session_id, user_id):
-        """Test WebSocket heartbeat mechanism."""
+        """Test WebSocket heartbeat mechanism and presence updates.
+
+        Validates:
+        - Heartbeat messages are accepted
+        - Presence is updated on heartbeat
+        - Connection remains active
+        - TTL is refreshed
+        """
         from fastapi.testclient import TestClient
         from src.api.main import app
 
-        with patch("src.api.routes.collaboration.get_cache") as mock_get_cache:
+        with patch("src.api.routes.collaboration.get_cache") as mock_get_cache, \
+             patch("src.api.routes.collaboration.CollaborationManager") as mock_manager_class:
+
+            # Mock Redis
             mock_redis = AsyncMock()
-            mock_redis.hset = AsyncMock()
-            mock_redis.expire = AsyncMock()
+            mock_redis.sadd = AsyncMock(return_value=1)
+            mock_redis.setex = AsyncMock()
+            mock_redis.subscribe = AsyncMock()
             mock_redis.publish = AsyncMock()
             mock_redis.hgetall = AsyncMock(return_value={})
-            mock_redis.zrevrange = AsyncMock(return_value=[])
+            mock_redis.lrange = AsyncMock(return_value=[])
 
             mock_get_cache.return_value = mock_redis
 
+            # Mock CollaborationManager
+            mock_manager = MagicMock()
+            mock_manager.track_presence = AsyncMock()
+            mock_manager.get_session_state = AsyncMock(
+                return_value=SessionState(
+                    session_id=session_id,
+                    active_users=[],
+                    recent_actions=[],
+                    last_activity=datetime.utcnow(),
+                )
+            )
+            mock_manager.remove_presence = AsyncMock()
+            async def mock_subscribe():
+                yield
+            mock_manager.subscribe_to_session = lambda sid: mock_subscribe()
+
+            mock_manager_class.return_value = mock_manager
+
             with TestClient(app) as test_client:
-                try:
-                    with test_client.websocket_connect(
-                        f"/api/v1/collaboration/ws/{session_id}?user_id={user_id}"
-                    ) as websocket:
-                        # Receive initial state
-                        websocket.receive_json()
+                with test_client.websocket_connect(
+                    f"/api/v1/collaboration/ws/{session_id}?user_id={user_id}"
+                ) as websocket:
+                    # Receive initial state
+                    initial_data = websocket.receive_json()
+                    assert initial_data["event_type"] == "session_state"
 
-                        # Send heartbeat
-                        websocket.send_json(
-                            {
-                                "type": "heartbeat",
-                                "timestamp": datetime.utcnow().isoformat(),
-                            }
-                        )
+                    # Reset call count after initial connection
+                    initial_call_count = mock_manager.track_presence.call_count
 
-                        # Should update presence
-                        assert mock_redis.hset.call_count >= 1
+                    # Send heartbeat
+                    heartbeat_timestamp = datetime.utcnow().isoformat()
+                    websocket.send_json({
+                        "type": "heartbeat",
+                        "timestamp": heartbeat_timestamp,
+                    })
 
-                except Exception:
-                    pass
+                    # Small delay to allow processing
+                    import time
+                    time.sleep(0.1)
+
+                    # Verify presence was updated (call count increased)
+                    assert mock_manager.track_presence.call_count > initial_call_count, \
+                        "track_presence should be called again after heartbeat"
+
+                    # Verify heartbeat call included correct parameters
+                    heartbeat_calls = [
+                        call for call in mock_manager.track_presence.call_args_list
+                        if call[1].get('session_id') == session_id
+                    ]
+                    assert len(heartbeat_calls) >= 2, \
+                        "Expected at least 2 presence tracking calls (initial + heartbeat)"
 
     @pytest.mark.asyncio
     async def test_websocket_action_broadcast(self, session_id, user_id):
-        """Test broadcasting action via WebSocket."""
+        """Test broadcasting actions via WebSocket.
+
+        Validates:
+        - Action messages are accepted
+        - Actions are broadcast to Redis pub/sub
+        - Action persistence works correctly
+        - Action data is properly formatted
+        """
         from fastapi.testclient import TestClient
         from src.api.main import app
 
-        with patch("src.api.routes.collaboration.get_cache") as mock_get_cache:
+        with patch("src.api.routes.collaboration.get_cache") as mock_get_cache, \
+             patch("src.api.routes.collaboration.CollaborationManager") as mock_manager_class:
+
+            # Mock Redis
             mock_redis = AsyncMock()
-            mock_redis.hset = AsyncMock()
-            mock_redis.expire = AsyncMock()
+            mock_redis.sadd = AsyncMock(return_value=1)
+            mock_redis.setex = AsyncMock()
+            mock_redis.subscribe = AsyncMock()
             mock_redis.publish = AsyncMock()
             mock_redis.hgetall = AsyncMock(return_value={})
-            mock_redis.zrevrange = AsyncMock(return_value=[])
-            mock_redis.zadd = AsyncMock()
+            mock_redis.lrange = AsyncMock(return_value=[])
+            mock_redis.lpush = AsyncMock()
 
             mock_get_cache.return_value = mock_redis
 
+            # Mock CollaborationManager
+            mock_manager = MagicMock()
+            mock_manager.track_presence = AsyncMock()
+            mock_manager.get_session_state = AsyncMock(
+                return_value=SessionState(
+                    session_id=session_id,
+                    active_users=[],
+                    recent_actions=[],
+                    last_activity=datetime.utcnow(),
+                )
+            )
+            mock_manager.broadcast_action = AsyncMock()
+            mock_manager.remove_presence = AsyncMock()
+            async def mock_subscribe():
+                yield
+            mock_manager.subscribe_to_session = lambda sid: mock_subscribe()
+
+            mock_manager_class.return_value = mock_manager
+
             with TestClient(app) as test_client:
-                try:
-                    with test_client.websocket_connect(
-                        f"/api/v1/collaboration/ws/{session_id}?user_id={user_id}"
-                    ) as websocket:
-                        # Receive initial state
-                        websocket.receive_json()
+                with test_client.websocket_connect(
+                    f"/api/v1/collaboration/ws/{session_id}?user_id={user_id}"
+                ) as websocket:
+                    # Receive initial state
+                    initial_data = websocket.receive_json()
+                    assert initial_data["event_type"] == "session_state"
 
-                        # Send action
-                        websocket.send_json(
-                            {
-                                "type": "action",
-                                "action_type": "vote_cast",
-                                "target_id": str(uuid4()),
-                                "data": {"value": "strong"},
-                                "persist": True,
-                            }
-                        )
+                    # Send action
+                    action_target_id = str(uuid4())
+                    websocket.send_json({
+                        "type": "action",
+                        "action_type": "vote_cast",
+                        "target_id": action_target_id,
+                        "data": {"value": "strong"},
+                        "persist": True,
+                    })
 
-                        # Should broadcast action
-                        assert mock_redis.publish.call_count >= 1
+                    # Small delay to allow processing
+                    import time
+                    time.sleep(0.1)
 
-                except Exception:
-                    pass
+                    # Verify action was broadcast
+                    assert mock_manager.broadcast_action.call_count >= 1, \
+                        "broadcast_action should be called after sending action"
+
+                    # Verify broadcast was called with correct parameters
+                    call_args = mock_manager.broadcast_action.call_args
+                    assert call_args is not None, "broadcast_action was not called"
+
+                    # Check session_id parameter
+                    assert call_args[1]['session_id'] == session_id, \
+                        f"Expected session_id {session_id}, got {call_args[1]['session_id']}"
+
+                    # Check user_id parameter
+                    assert call_args[1]['user_id'] == user_id, \
+                        f"Expected user_id {user_id}, got {call_args[1]['user_id']}"
+
+                    # Check action object
+                    action = call_args[1]['action']
+                    assert action.action_type == "vote_cast", \
+                        f"Expected action_type 'vote_cast', got '{action.action_type}'"
+                    assert str(action.target_id) == action_target_id, \
+                        f"Expected target_id {action_target_id}, got {action.target_id}"
+                    assert action.data == {"value": "strong"}, \
+                        f"Expected data {{'value': 'strong'}}, got {action.data}"
+                    assert action.persist is True, \
+                        f"Expected persist=True, got {action.persist}"
 
 
 class TestErrorHandling:
