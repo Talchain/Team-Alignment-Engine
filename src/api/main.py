@@ -19,6 +19,7 @@ from src.api.routes import (
     options_router,
     concerns_router,
     decisions_router,
+    phase_c_router,
 )
 from src.api.metrics import MetricsMiddleware, metrics_endpoint
 from src.storage import init_db, init_cache
@@ -66,6 +67,7 @@ app.include_router(analysis_router)
 app.include_router(options_router)
 app.include_router(concerns_router)
 app.include_router(decisions_router)
+app.include_router(phase_c_router)  # Phase C: Intelligent Assistance
 
 # Add metrics endpoint
 app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["monitoring"])

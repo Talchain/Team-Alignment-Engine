@@ -136,6 +136,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deterministic operations with seeds
 - Graceful degradation patterns
 
+## [1.1.0] - 2025-01-15
+
+### Added - Phase C: Intelligent Assistance & Learning
+
+#### C1: AI Option Generation
+- AI-powered option generation service with CEE integration
+- Two generation modes: creative_synthesis and constraint_satisfaction
+- Generates 2-3 options that bridge stakeholder disagreements
+- Full AIGenerationMetadata tracking for transparency
+- POST /api/v1/alignment/sessions/{id}/generate-options endpoint
+
+#### C2: Option Synthesis
+- Option Synthesizer service for creating hybrid options
+- Combines elements from multiple source options
+- Compatibility scoring between options
+- SynthesisMetadata tracking which elements preserved/sacrificed
+- POST /api/v1/alignment/sessions/{id}/synthesize-options endpoint
+
+#### C3: Option Tuning
+- Option Tuner service for addressing minority concerns
+- Adjusts options while preserving core elements
+- Tuning feasibility assessment
+- TuningMetadata tracking parameter adjustments
+- POST /api/v1/alignment/sessions/{id}/tune-option endpoint
+
+#### C4: Assumption Testing Recommendations
+- Assumption Testing Advisor service
+- Prioritizes assumptions by criticality (impact + evidence)
+- Recommends validation methods (A/B test, technical spike, user research)
+- Timeline and budget estimation for testing
+- POST /api/v1/alignment/sessions/{id}/test-recommendations endpoint
+
+#### C5: Decision Learning Loop
+- Decision Retrospective service with outcome tracking
+- Compares actual vs predicted outcomes
+- Analyzes which assumptions held vs failed
+- Generates lessons learned via CEE
+- Organizational recommendations from multiple retrospectives
+- POST /api/v1/alignment/sessions/{id}/retrospective endpoint
+- GET /api/v1/alignment/teams/{team_id}/recommendations endpoint
+
+#### C6: Multi-Round Deliberation
+- Session Reopener service for when assumptions fail
+- Session chaining with parent_session_id and chain_depth
+- Reopen assessment based on outcome accuracy
+- SessionChainLink tracking for decision evolution
+- POST /api/v1/alignment/sessions/{id}/reopen endpoint
+
+#### Schema Updates
+- Added parent_session_id, reopened_from_id, chain_depth to sessions table
+- Added ai_generation_metadata, synthesis_metadata, tuning_metadata to options table
+- New assumption_validations table for pre-decision testing
+- New decision_retrospectives table for learning loop
+- Alembic migration 002 for Phase C schema
+
+#### Services
+- AIOptionGenerator - AI-powered option creation
+- OptionSynthesizer - Hybrid option creation
+- OptionTuner - Minority concern resolution
+- AssumptionTestingAdvisor - Validation strategy recommendations
+- DecisionRetrospectiveService - Learning from outcomes
+- SessionReopener - Multi-round deliberation support
+
+#### CEE Integration Enhancements
+- generate_options - AI option generation
+- synthesize_options - Option combination
+- tune_option - Option adjustment
+- recommend_test_strategy - Testing recommendations
+- generate_lessons_learned - Retrospective insights
+- generate_org_recommendations - Cross-decision patterns
+
+#### Metrics
+- ai_options_generated_total counter
+- options_synthesized_total counter
+- options_tuned_total counter
+- retrospectives_created_total counter
+- sessions_reopened_total counter
+
+#### Testing
+- Comprehensive unit tests for all 6 Phase C services
+- Updated MockCEEClient with Phase C methods
+- Test coverage for AI generation, synthesis, tuning, retrospectives
+
+---
+
 ## [Unreleased]
 
 ### Planned Features
@@ -148,7 +233,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version history for decisions
 - Template library
 - Team comparison analytics
-- AI-powered option generation
 
 ---
 

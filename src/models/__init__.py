@@ -26,6 +26,16 @@ from src.models.validation import (
 from src.models.fit import StakeholderFitScore, OptionFit
 from src.models.concern import SensitivityResult, MinorityConcern
 from src.models.decision import DecisionBrief
+from src.models.phase_c_models import (
+    AIGenerationMetadata,
+    SynthesisMetadata,
+    TuningMetadata,
+    AssumptionValidationRecord,
+    TestStrategy,
+    OutcomeComparison,
+    DecisionRetrospective,
+    SessionChainLink,
+)
 
 __all__ = [
     # Enums
@@ -56,4 +66,13 @@ __all__ = [
     "SensitivityResult",
     "MinorityConcern",
     "DecisionBrief",
+    # Phase C Models
+    "AIGenerationMetadata",
+    "SynthesisMetadata",
+    "TuningMetadata",
+    "AssumptionValidationRecord",
+    "TestStrategy",
+    "OutcomeComparison",
+    "DecisionRetrospective",
+    "SessionChainLink",
 ]

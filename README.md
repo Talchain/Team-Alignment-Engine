@@ -1,7 +1,7 @@
 # Team Alignment Engine (TAE)
 
-**Version:** 1.0.0
-**Status:** Production Ready
+**Version:** 1.1.0
+**Status:** Production Ready with Intelligent Assistance
 
 ## Mission Statement
 
@@ -37,6 +37,14 @@ UI → PLoT Engine (orchestrator)
 - ✅ Sensitivity analysis on contested assumptions
 - ✅ Complete decision audit trail
 - ✅ Scenario model integration
+
+### Phase C: Intelligent Assistance & Learning
+- ✅ **AI Option Generation** - Generate creative options that bridge stakeholder disagreements
+- ✅ **Option Synthesis** - Combine elements from multiple options into optimal hybrids
+- ✅ **Option Tuning** - Adjust options to address minority concerns while preserving core value
+- ✅ **Assumption Testing Advisor** - Prioritize which assumptions to validate before deciding
+- ✅ **Decision Learning Loop** - Compare actual vs predicted outcomes and generate lessons learned
+- ✅ **Multi-Round Deliberation** - Reopen sessions when assumptions fail or context changes
 
 ## Quick Start
 

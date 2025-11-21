@@ -40,6 +40,11 @@ class SessionDB(Base):
 
     selected_option_id = Column(UUID(as_uuid=True), nullable=True)
 
+    # Phase C: Multi-round deliberation support
+    parent_session_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    reopened_from_id = Column(UUID(as_uuid=True), nullable=True)
+    chain_depth = Column(Integer, nullable=False, default=0)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     completed_at = Column(DateTime, nullable=True)
@@ -96,6 +101,11 @@ class OptionDB(Base):
     scenario_link = Column(JSON, nullable=True)
     is_baseline = Column(Boolean, nullable=False, default=False)
     status = Column(String(50), nullable=False, default="proposed")
+
+    # Phase C: AI-powered option creation metadata
+    ai_generation_metadata = Column(JSON, nullable=True)
+    synthesis_metadata = Column(JSON, nullable=True)
+    tuning_metadata = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -197,3 +207,45 @@ class DecisionBriefDB(Base):
 
     decision_quality_rating = Column(Integer, nullable=True)
     post_decision_notes = Column(String(2000), nullable=True)
+
+
+class AssumptionValidationDB(Base):
+    """Database model for assumption validation records (Phase C)."""
+
+    __tablename__ = "assumption_validations"
+
+    validation_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    assumption_id = Column(String(200), nullable=False, index=True)
+    session_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+
+    validation_method = Column(String(100), nullable=False)  # a_b_test, technical_spike, user_research
+    validation_result = Column(String(50), nullable=False)  # confirmed, rejected, modified
+    validation_notes = Column(String(2000), nullable=False)
+
+    validated_at = Column(DateTime, nullable=False)
+    validated_by = Column(UUID(as_uuid=True), nullable=False)
+
+    updated_assumption = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class DecisionRetrospectiveDB(Base):
+    """Database model for decision retrospectives (Phase C)."""
+
+    __tablename__ = "decision_retrospectives"
+
+    retrospective_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    brief_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+
+    actual_outcomes = Column(JSON, nullable=False)  # Dict[str, float]
+    outcome_comparison = Column(JSON, nullable=False)  # OutcomeComparison data
+    assumption_results = Column(JSON, nullable=False)  # List of assumption validation results
+    assumption_analysis = Column(JSON, nullable=False)  # Analysis of which assumptions held
+
+    narrative = Column(String(5000), nullable=False)  # Human-readable summary
+    lessons_learned = Column(JSON, nullable=False)  # List of lessons
+
+    recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    recorded_by = Column(UUID(as_uuid=True), nullable=False)

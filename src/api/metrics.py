@@ -53,6 +53,33 @@ isl_calls_total = Counter(
     ['endpoint', 'status']
 )
 
+# Phase C Counters
+ai_options_generated_total = Counter(
+    'tae_ai_options_generated_total',
+    'Total number of AI-generated options',
+    ['mode']
+)
+
+options_synthesized_total = Counter(
+    'tae_options_synthesized_total',
+    'Total number of synthesized hybrid options'
+)
+
+options_tuned_total = Counter(
+    'tae_options_tuned_total',
+    'Total number of options tuned for minority concerns'
+)
+
+retrospectives_created_total = Counter(
+    'tae_retrospectives_created_total',
+    'Total number of decision retrospectives created'
+)
+
+sessions_reopened_total = Counter(
+    'tae_sessions_reopened_total',
+    'Total number of sessions reopened for multi-round deliberation'
+)
+
 # Histograms
 request_duration_seconds = Histogram(
     'tae_request_duration_seconds',
