@@ -23,12 +23,19 @@ from src.models.plot import (
     OrganizationalContext,
     SimilarDecision,
     DecisionDependency,
+    TrendInsights,
+    CrossTeamConflict,
+    CollaborationData,
+    RecentAction,
     AvailabilityStatus,
     CapabilityAvailability,
 )
 from src.services.session_manager import SessionManager
 from src.services.dependency_manager import DecisionDependencyManager
 from src.services.pattern_analyzer import PatternAnalyzer
+from src.services.analytics_engine import AdvancedAnalyticsEngine
+from src.services.coordination_manager import CrossTeamCoordinator
+from src.services.collaboration_manager import CollaborationManager
 from src.storage.cache import get_cache
 
 logger = logging.getLogger(__name__)
@@ -37,18 +44,16 @@ logger = logging.getLogger(__name__)
 class OrchestrationService:
     """Orchestrates Phase D capabilities for PLoT integration.
 
-    Aggregates data from multiple Phase D services (D1/D3/D4) into
+    Aggregates data from multiple Phase D services (D1/D3/D4/D5/D6/D2) into
     a unified TaeTeamAlignmentPayload for PLoT's /v1/run endpoint.
 
-    POC v02 Priorities (Q6 decision):
+    Phase 3: All capabilities available (feature-flag gated):
     - D1: Core Alignment (session state, shared ground, disagreements)
+    - D2: Real-Time Collaboration (HTTP polling + WebSocket stubs)
     - D3: Decision Dependencies (dependency graph)
     - D4: Organizational Patterns (pattern extraction)
-
-    Deferred capabilities (return unavailable status):
-    - D2: Real-Time Collaboration (HTTP polling only)
-    - D5: Advanced Analytics (trend forecasting)
-    - D6: Cross-Team Coordination (multi-team conflicts)
+    - D5: Advanced Analytics (trend analysis, forecasting, benchmarks)
+    - D6: Cross-Team Coordination (conflict detection, resolution)
     """
 
     def __init__(
@@ -57,6 +62,9 @@ class OrchestrationService:
         session_manager: Optional[SessionManager] = None,
         dependency_manager: Optional[DecisionDependencyManager] = None,
         pattern_analyzer: Optional[PatternAnalyzer] = None,
+        analytics_engine: Optional[AdvancedAnalyticsEngine] = None,
+        coordination_manager: Optional[CrossTeamCoordinator] = None,
+        collaboration_manager: Optional[CollaborationManager] = None,
     ):
         """Initialize orchestration service.
 
@@ -65,11 +73,17 @@ class OrchestrationService:
             session_manager: Optional session manager instance
             dependency_manager: Optional dependency manager instance
             pattern_analyzer: Optional pattern analyzer instance
+            analytics_engine: Optional analytics engine instance (D5)
+            coordination_manager: Optional coordination manager instance (D6)
+            collaboration_manager: Optional collaboration manager instance (D2)
         """
         self.db = db
         self.session_manager = session_manager or SessionManager()
         self.dependency_manager = dependency_manager or DecisionDependencyManager(db)
         self.pattern_analyzer = pattern_analyzer or PatternAnalyzer(db)
+        self.analytics_engine = analytics_engine or AdvancedAnalyticsEngine(db)
+        self.coordination_manager = coordination_manager or CrossTeamCoordinator(db)
+        self.collaboration_manager = collaboration_manager or CollaborationManager(db)
 
     async def build_alignment_payload(
         self,
@@ -124,6 +138,17 @@ class OrchestrationService:
                 session_id, organization_id
             )
 
+        if "d5_analytics" in capabilities:
+            capability_tasks["d5_analytics"] = self._get_analytics(organization_id)
+
+        if "d6_coordination" in capabilities:
+            capability_tasks["d6_coordination"] = self._get_conflicts(
+                session_id, organization_id
+            )
+
+        if "d2_collaboration" in capabilities:
+            capability_tasks["d2_collaboration"] = self._get_collaboration(session_id)
+
         # Execute all capability tasks in parallel
         results = await asyncio.gather(
             *capability_tasks.values(), return_exceptions=True
@@ -157,13 +182,16 @@ class OrchestrationService:
         if alignment_data and session_id:
             decision_quality = self._build_decision_quality(alignment_data)
 
-        # Build organizational context (D3/D4)
+        # Build organizational context (D3/D4/D5/D6)
         org_context = OrganizationalContext(
             similar_decisions=capability_results.get("d4_patterns", []),
             dependencies=capability_results.get("d3_dependencies", []),
-            trend_insights=None,  # D5 deferred
-            conflicts=[],  # D6 deferred
+            trend_insights=capability_results.get("d5_analytics"),  # D5
+            conflicts=capability_results.get("d6_coordination", []),  # D6
         )
+
+        # Build collaboration data (D2)
+        collaboration_data = capability_results.get("d2_collaboration")
 
         # Build availability status with feature flags
         availability = self._build_availability_status(
@@ -205,7 +233,7 @@ class OrchestrationService:
             alignment=alignment_data,
             decision_quality=decision_quality,
             organizational_context=org_context,
-            collaboration=None,  # D2 deferred (Q1 decision: HTTP polling only)
+            collaboration=collaboration_data,  # D2 (HTTP polling + WebSocket stubs)
             availability=availability,
         )
 
@@ -582,13 +610,16 @@ class OrchestrationService:
         capabilities = CapabilityAvailability(
             d1_portfolio_analytics=settings.feature_portfolio_analytics_enabled
             and capability_status.get("core_alignment", True),
-            d2_realtime_collaboration=settings.feature_realtime_collaboration_enabled,  # Always False for POC v02
+            d2_realtime_collaboration=settings.feature_realtime_collaboration_enabled
+            and capability_status.get("d2_collaboration", True),
             d3_decision_dependencies=settings.feature_decision_dependencies_enabled
             and capability_status.get("d3_dependencies", True),
             d4_organizational_patterns=settings.feature_organizational_patterns_enabled
             and capability_status.get("d4_patterns", True),
-            d5_advanced_analytics=settings.feature_advanced_analytics_enabled,  # Deferred
-            d6_cross_team_coordination=settings.feature_cross_team_coordination_enabled,  # Deferred
+            d5_advanced_analytics=settings.feature_advanced_analytics_enabled
+            and capability_status.get("d5_analytics", True),
+            d6_cross_team_coordination=settings.feature_cross_team_coordination_enabled
+            and capability_status.get("d6_coordination", True)
         )
 
         # Determine degradation status
@@ -608,3 +639,265 @@ class OrchestrationService:
             degraded=degraded,
             degradation_reason=degradation_reason,
         )
+
+    # =========================================================================
+    # D5: ADVANCED ANALYTICS
+    # =========================================================================
+
+    async def _get_analytics(self, organization_id: str) -> Optional[TrendInsights]:
+        """Get advanced analytics trend insights (D5).
+
+        Args:
+            organization_id: Organization ID
+
+        Returns:
+            TrendInsights with trend analysis and forecasts, or None if disabled
+        """
+        if not settings.feature_advanced_analytics_enabled:
+            logger.warning(
+                "D5 (advanced analytics) disabled via feature flag",
+                extra={"organization_id": organization_id},
+            )
+            return None
+
+        try:
+            org_uuid = UUID(organization_id)
+
+            # Analyze decision velocity trend
+            velocity_trend = await self.analytics_engine.analyze_trends(
+                organization_id=org_uuid,
+                metric_name="decision_time",
+                lookback_days=90,
+            )
+
+            # Analyze quality trend
+            quality_trend = await self.analytics_engine.analyze_trends(
+                organization_id=org_uuid,
+                metric_name="quality_score",
+                lookback_days=90,
+            )
+
+            # Calculate velocity comparison
+            # Baseline: 10 days average (industry standard)
+            avg_decision_time = sum(p["value"] for p in velocity_trend.data_points) / len(
+                velocity_trend.data_points
+            )
+            baseline = 10.0
+            velocity_pct = ((avg_decision_time - baseline) / baseline) * 100
+
+            if abs(velocity_pct) < 5:
+                velocity_description = "on pace with baseline"
+            elif velocity_pct > 0:
+                velocity_description = f"{abs(velocity_pct):.0f}% slower than baseline"
+            else:
+                velocity_description = f"{abs(velocity_pct):.0f}% faster than baseline"
+
+            # Map quality trend direction
+            quality_trend_status = quality_trend.trend_direction
+            if quality_trend_status == "increasing":
+                quality_trend_str = "improving"
+            elif quality_trend_status == "decreasing":
+                quality_trend_str = "declining"
+            else:
+                quality_trend_str = "stable"
+
+            # Build forecast data
+            forecast_data = {
+                "velocity_forecast": velocity_trend.forecast_30days[:7],  # Next 7 days
+                "quality_forecast": quality_trend.forecast_30days[:7],
+                "confidence_intervals": velocity_trend.confidence_intervals[:7],
+                "trend_strength": velocity_trend.trend_strength,
+            }
+
+            logger.info(
+                "Analytics retrieved",
+                extra={
+                    "organization_id": organization_id,
+                    "velocity_trend": velocity_trend.trend_direction,
+                    "quality_trend": quality_trend_str,
+                },
+            )
+
+            return TrendInsights(
+                organization_decision_velocity=velocity_description,
+                quality_trend=quality_trend_str,
+                forecast=forecast_data,
+            )
+
+        except ValueError:
+            logger.warning(
+                "Invalid organization ID format for analytics",
+                extra={"organization_id": organization_id},
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                "Failed to get analytics",
+                extra={"organization_id": organization_id, "error": str(e)},
+                exc_info=True,
+            )
+            raise
+
+    # =========================================================================
+    # D6: CROSS-TEAM COORDINATION
+    # =========================================================================
+
+    async def _get_conflicts(
+        self, session_id: Optional[str], organization_id: str
+    ) -> List[CrossTeamConflict]:
+        """Get cross-team conflicts (D6).
+
+        Args:
+            session_id: Session ID
+            organization_id: Organization ID
+
+        Returns:
+            List of CrossTeamConflict objects
+        """
+        if not settings.feature_cross_team_coordination_enabled:
+            logger.warning(
+                "D6 (cross-team coordination) disabled via feature flag",
+                extra={"organization_id": organization_id},
+            )
+            return []
+
+        if not session_id:
+            return []
+
+        try:
+            try:
+                session_uuid = UUID(session_id)
+                org_uuid = UUID(organization_id)
+            except ValueError:
+                logger.warning(
+                    "Invalid UUID format for conflicts",
+                    extra={"session_id": session_id, "organization_id": organization_id},
+                )
+                return []
+
+            # Detect conflicts for this session
+            detected_conflicts = await self.coordination_manager.detect_conflicts(
+                organization_id=org_uuid,
+                session_ids=[session_uuid],
+            )
+
+            # Convert to CrossTeamConflict models for payload
+            result = []
+            for conflict in detected_conflicts:
+                # Find the conflicting session (not the current one)
+                conflicting_session_ids = [
+                    sid for sid in conflict.session_ids if sid != session_uuid
+                ]
+
+                for conflicting_sid in conflicting_session_ids:
+                    result.append(
+                        CrossTeamConflict(
+                            conflicting_session_id=str(conflicting_sid),
+                            conflict_type=conflict.conflict_type,
+                            severity=conflict.severity,
+                            resolution_suggestion=conflict.resolution_suggestions[0]
+                            if conflict.resolution_suggestions
+                            else None,
+                        )
+                    )
+
+            logger.info(
+                "Conflicts retrieved",
+                extra={
+                    "session_id": session_id,
+                    "conflict_count": len(result),
+                },
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                "Failed to get conflicts",
+                extra={
+                    "session_id": session_id,
+                    "organization_id": organization_id,
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
+            raise
+
+    # =========================================================================
+    # D2: REAL-TIME COLLABORATION
+    # =========================================================================
+
+    async def _get_collaboration(
+        self, session_id: Optional[str]
+    ) -> Optional[CollaborationData]:
+        """Get collaboration data (D2) - HTTP polling mode.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            CollaborationData with active stakeholders and recent actions
+        """
+        if not settings.feature_realtime_collaboration_enabled:
+            logger.warning(
+                "D2 (collaboration) disabled via feature flag",
+                extra={"session_id": session_id},
+            )
+            return None
+
+        if not session_id:
+            return None
+
+        try:
+            try:
+                session_uuid = UUID(session_id)
+            except ValueError:
+                logger.warning(
+                    "Invalid session ID format for collaboration",
+                    extra={"session_id": session_id},
+                )
+                return None
+
+            # Get active presence (HTTP polling - last 5 minutes)
+            active_users = await self.collaboration_manager.get_active_presence(
+                session_uuid, time_window_seconds=300
+            )
+
+            # Get recent actions (last 10)
+            recent_actions_data = await self.collaboration_manager.get_recent_actions(
+                session_uuid, limit=10
+            )
+
+            # Convert to RecentAction models
+            recent_actions = []
+            for action in recent_actions_data:
+                recent_actions.append(
+                    RecentAction(
+                        user_id=str(action.user_id),
+                        action_type=action.action_type,
+                        timestamp=action.timestamp,
+                        metadata=action.metadata,
+                    )
+                )
+
+            logger.info(
+                "Collaboration data retrieved",
+                extra={
+                    "session_id": session_id,
+                    "active_users": len(active_users),
+                    "recent_actions": len(recent_actions),
+                },
+            )
+
+            return CollaborationData(
+                active_stakeholders=[str(uid) for uid in active_users],
+                recent_actions=recent_actions,
+            )
+
+        except Exception as e:
+            logger.error(
+                "Failed to get collaboration data",
+                extra={"session_id": session_id, "error": str(e)},
+                exc_info=True,
+            )
+            raise
