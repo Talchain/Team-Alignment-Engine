@@ -279,14 +279,15 @@ async def test_get_dependencies_error_handling(
     orchestration_service, mock_dependency_manager
 ):
     """Test dependency retrieval with error."""
-    # Setup - mock error
+    # Setup - mock error with valid UUID
+    test_uuid = "550e8400-e29b-41d4-a716-446655440000"
     mock_dependency_manager.get_dependencies_for_session.side_effect = Exception(
         "Database error"
     )
 
     # Execute & Assert
     with pytest.raises(Exception, match="Database error"):
-        await orchestration_service._get_dependencies("session-123")
+        await orchestration_service._get_dependencies(test_uuid)
 
 
 # =============================================================================
@@ -350,7 +351,9 @@ async def test_get_patterns_limits_to_top_5(
     orchestration_service, mock_pattern_analyzer
 ):
     """Test pattern retrieval limits to top 5 patterns."""
-    # Setup - mock 10 patterns
+    # Setup - mock 10 patterns with valid UUIDs
+    test_session_uuid = "550e8400-e29b-41d4-a716-446655440000"
+    test_org_uuid = "650e8400-e29b-41d4-a716-446655440001"
     mock_patterns = [
         MagicMock(
             pattern_id=f"pattern-{i}",
@@ -363,7 +366,7 @@ async def test_get_patterns_limits_to_top_5(
     mock_pattern_analyzer.extract_patterns.return_value = mock_patterns
 
     # Execute
-    result = await orchestration_service._get_patterns("session-123", "org-456")
+    result = await orchestration_service._get_patterns(test_session_uuid, test_org_uuid)
 
     # Assert
     assert len(result) == 5  # Should limit to top 5
@@ -411,6 +414,7 @@ async def test_build_alignment_payload_all_capabilities_success(
 ):
     """Test building full payload with all capabilities succeeding."""
     # Setup
+    test_org_uuid = "650e8400-e29b-41d4-a716-446655440001"
     mock_session_manager.get.return_value = sample_session
     mock_dependency_manager.get_dependencies_for_session.return_value = []
     mock_pattern_analyzer.extract_patterns.return_value = []
@@ -418,7 +422,7 @@ async def test_build_alignment_payload_all_capabilities_success(
     # Execute
     payload = await orchestration_service.build_alignment_payload(
         session_id=str(sample_session.session_id),
-        organization_id="org-123",
+        organization_id=test_org_uuid,
         capabilities=["core_alignment", "d3_dependencies", "d4_patterns"],
         context={},
         request_id="plot-run-test-001",
@@ -427,9 +431,11 @@ async def test_build_alignment_payload_all_capabilities_success(
     # Assert
     assert isinstance(payload, TaeTeamAlignmentPayload)
     assert payload.session_id == str(sample_session.session_id)
-    assert payload.organization_id == "org-123"
+    assert payload.organization_id == test_org_uuid
     assert payload.request_id == "plot-run-test-001"
-    assert payload.version == "2.0.0"
+    # Version comes from settings.service_version
+    assert payload.version is not None
+    assert isinstance(payload.version, str)
 
     # Verify alignment data present
     assert payload.alignment is not None
@@ -492,6 +498,7 @@ async def test_build_alignment_payload_partial_failure(
 ):
     """Test graceful degradation with partial capability failure."""
     # Setup - D1 succeeds, D3 succeeds, D4 fails
+    test_org_uuid = "650e8400-e29b-41d4-a716-446655440001"
     mock_session_manager.get.return_value = sample_session
     mock_dependency_manager.get_dependencies_for_session.return_value = []
     mock_pattern_analyzer.extract_patterns.side_effect = Exception(
@@ -501,7 +508,7 @@ async def test_build_alignment_payload_partial_failure(
     # Execute
     payload = await orchestration_service.build_alignment_payload(
         session_id=str(sample_session.session_id),
-        organization_id="org-123",
+        organization_id=test_org_uuid,
         capabilities=["core_alignment", "d3_dependencies", "d4_patterns"],
         context={},
         request_id="plot-run-test-003",
@@ -535,7 +542,9 @@ async def test_build_alignment_payload_all_capabilities_fail(
     mock_pattern_analyzer,
 ):
     """Test complete failure when all capabilities fail."""
-    # Setup - all capabilities fail
+    # Setup - all capabilities fail with valid UUIDs
+    test_session_uuid = "550e8400-e29b-41d4-a716-446655440000"
+    test_org_uuid = "650e8400-e29b-41d4-a716-446655440001"
     mock_session_manager.get.side_effect = Exception("Session manager error")
     mock_dependency_manager.get_dependencies_for_session.side_effect = Exception(
         "Dependency error"
@@ -544,8 +553,8 @@ async def test_build_alignment_payload_all_capabilities_fail(
 
     # Execute
     payload = await orchestration_service.build_alignment_payload(
-        session_id="session-123",
-        organization_id="org-456",
+        session_id=test_session_uuid,
+        organization_id=test_org_uuid,
         capabilities=["core_alignment", "d3_dependencies", "d4_patterns"],
         context={},
         request_id="plot-run-test-004",
@@ -687,17 +696,24 @@ async def test_build_decision_quality_low_consensus(orchestration_service):
 
 def test_map_session_status(orchestration_service):
     """Test session status mapping."""
-    # Test all status mappings
+    # Test all status mappings with SessionStatus enum
     assert (
-        orchestration_service._map_session_status("COLLECTING")
+        orchestration_service._map_session_status(SessionStatus.COLLECTING)
         == "collecting_perspectives"
     )
     assert (
-        orchestration_service._map_session_status("PROPOSING") == "proposing_options"
+        orchestration_service._map_session_status(SessionStatus.ANALYZING)
+        == "proposing_options"
     )
-    assert orchestration_service._map_session_status("DELIBERATING") == "deliberating"
-    assert orchestration_service._map_session_status("COMPLETE") == "decided"
-    assert orchestration_service._map_session_status("UNKNOWN") == "unknown"
+    assert (
+        orchestration_service._map_session_status(SessionStatus.DELIBERATING)
+        == "deliberating"
+    )
+    assert (
+        orchestration_service._map_session_status(SessionStatus.COMPLETE) == "decided"
+    )
+    # Test unknown status
+    assert orchestration_service._map_session_status("unknown_status") == "unknown"
 
 
 # =============================================================================

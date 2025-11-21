@@ -236,7 +236,15 @@ class OrchestrationService:
 
         try:
             # Get session from session manager
-            session_uuid = UUID(session_id)
+            try:
+                session_uuid = UUID(session_id)
+            except ValueError:
+                logger.warning(
+                    "Invalid session ID format for core alignment",
+                    extra={"session_id": session_id},
+                )
+                return None
+
             session = await self.session_manager.get(session_uuid)
 
             if not session:
@@ -284,13 +292,16 @@ class OrchestrationService:
 
     def _map_session_status(self, status) -> str:
         """Map session status to alignment state."""
+        # Handle SessionStatus enum
+        status_str = status.value if hasattr(status, 'value') else str(status)
+
         status_mapping = {
-            "COLLECTING": "collecting_perspectives",
-            "PROPOSING": "proposing_options",
-            "DELIBERATING": "deliberating",
-            "COMPLETE": "decided",
+            "collecting": "collecting_perspectives",
+            "analyzing": "proposing_options",
+            "deliberating": "deliberating",
+            "complete": "decided",
         }
-        return status_mapping.get(str(status), "unknown")
+        return status_mapping.get(status_str, "unknown")
 
     def _calculate_consensus(self, session) -> float:
         """Calculate consensus level from session data.
@@ -420,7 +431,14 @@ class OrchestrationService:
             return []
 
         try:
-            session_uuid = UUID(session_id)
+            try:
+                session_uuid = UUID(session_id)
+            except ValueError:
+                logger.warning(
+                    "Invalid session ID format for dependencies",
+                    extra={"session_id": session_id},
+                )
+                return []
 
             # Get dependencies for this session
             dependencies_list = await self.dependency_manager.get_dependencies_for_session(
@@ -491,8 +509,15 @@ class OrchestrationService:
             return []
 
         try:
-            session_uuid = UUID(session_id)
-            org_uuid = UUID(organization_id)
+            try:
+                session_uuid = UUID(session_id)
+                org_uuid = UUID(organization_id)
+            except ValueError:
+                logger.warning(
+                    "Invalid UUID format for patterns",
+                    extra={"session_id": session_id, "organization_id": organization_id},
+                )
+                return []
 
             # Extract patterns for this session
             patterns = await self.pattern_analyzer.extract_patterns(

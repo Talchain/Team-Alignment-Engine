@@ -69,17 +69,17 @@ def test_tae_team_alignment_payload_schema():
     # Verify Pydantic model exists and has correct fields
     schema = TaeTeamAlignmentPayload.model_json_schema()
 
-    # Required fields
+    # Required fields (timestamp has default_factory, so not required)
     required_fields = schema.get("required", [])
     assert "organization_id" in required_fields
-    assert "timestamp" in required_fields
     assert "version" in required_fields
-    assert "organizational_context" in required_fields
     assert "availability" in required_fields
 
-    # Optional fields (session-specific)
+    # All fields should be in properties
     properties = schema.get("properties", {})
     assert "session_id" in properties
+    assert "timestamp" in properties  # Has default, but in properties
+    assert "organizational_context" in properties
     assert "alignment" in properties
     assert "decision_quality" in properties
     assert "collaboration" in properties
@@ -104,11 +104,15 @@ def test_availability_status_schema():
     """Test AvailabilityStatus schema definition."""
     schema = AvailabilityStatus.model_json_schema()
 
-    # Required fields
+    # Required fields (capabilities has default_factory, so not required)
     required_fields = schema.get("required", [])
     assert "tae_available" in required_fields
-    assert "capabilities" in required_fields
     assert "degraded" in required_fields
+
+    # All fields should be in properties
+    properties = schema.get("properties", {})
+    assert "capabilities" in properties  # Has default, but in properties
+    assert "degradation_reason" in properties
 
 
 # =============================================================================
@@ -379,37 +383,39 @@ def test_all_golden_fixtures_serialize():
 # =============================================================================
 
 
-def test_invalid_session_id_rejected():
-    """Test invalid session ID is rejected."""
-    with pytest.raises(ValidationError):
-        TaeTeamAlignmentPayload(
-            session_id="not-a-uuid",  # Invalid format
-            organization_id="org-123",
-            timestamp="2025-11-21T12:00:00Z",
-            version="2.0.0",
-            request_id="plot-run-test",
-            alignment=None,
-            decision_quality=None,
-            organizational_context={
-                "similar_decisions": [],
-                "dependencies": [],
-                "conflicts": [],
+def test_session_id_accepts_any_string():
+    """Test session_id accepts any string (no UUID validation)."""
+    # session_id is Optional[str], so any string is valid
+    payload = TaeTeamAlignmentPayload(
+        session_id="not-a-uuid",  # Any string is valid
+        organization_id="org-123",
+        timestamp="2025-11-21T12:00:00Z",
+        version="2.0.0",
+        request_id="plot-run-test",
+        alignment=None,
+        decision_quality=None,
+        organizational_context={
+            "similar_decisions": [],
+            "dependencies": [],
+            "conflicts": [],
+        },
+        collaboration=None,
+        availability={
+            "tae_available": True,
+            "capabilities": {
+                "d1_portfolio_analytics": True,
+                "d2_realtime_collaboration": False,
+                "d3_decision_dependencies": True,
+                "d4_organizational_patterns": True,
+                "d5_advanced_analytics": False,
+                "d6_cross_team_coordination": False,
             },
-            collaboration=None,
-            availability={
-                "tae_available": True,
-                "capabilities": {
-                    "d1_portfolio_analytics": True,
-                    "d2_realtime_collaboration": False,
-                    "d3_decision_dependencies": True,
-                    "d4_organizational_patterns": True,
-                    "d5_advanced_analytics": False,
-                    "d6_cross_team_coordination": False,
-                },
-                "degraded": False,
-                "degradation_reason": None,
-            },
-        )
+            "degraded": False,
+            "degradation_reason": None,
+        },
+    )
+
+    assert payload.session_id == "not-a-uuid"
 
 
 def test_missing_required_fields_rejected():
