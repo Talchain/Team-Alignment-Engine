@@ -8,6 +8,9 @@ from src.api.routes.options import router as options_router
 from src.api.routes.concerns import router as concerns_router
 from src.api.routes.decisions import router as decisions_router
 from src.api.routes.phase_c import router as phase_c_router
+from src.api.routes.portfolio import router as portfolio_router
+from src.api.routes.collaboration import router as collaboration_router
+from src.api.routes.dependencies import router as dependencies_router
 
 __all__ = [
     "health_router",
@@ -18,4 +21,7 @@ __all__ = [
     "concerns_router",
     "decisions_router",
     "phase_c_router",
+    "portfolio_router",
+    "collaboration_router",
+    "dependencies_router",
 ]
