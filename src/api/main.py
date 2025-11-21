@@ -20,6 +20,7 @@ from src.api.routes import (
     concerns_router,
     decisions_router,
 )
+from src.api.metrics import MetricsMiddleware, metrics_endpoint
 from src.storage import init_db, init_cache
 
 # Configure logging
@@ -52,6 +53,7 @@ app.add_middleware(
 # Add custom middleware
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RateLimiterMiddleware)
+app.add_middleware(MetricsMiddleware)
 
 # Set up error handlers
 setup_error_handlers(app)
@@ -64,6 +66,9 @@ app.include_router(analysis_router)
 app.include_router(options_router)
 app.include_router(concerns_router)
 app.include_router(decisions_router)
+
+# Add metrics endpoint
+app.add_api_route("/metrics", metrics_endpoint, methods=["GET"], tags=["monitoring"])
 
 
 @app.on_event("startup")
