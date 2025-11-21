@@ -120,7 +120,7 @@ class OptionTuner:
             scenario_link=tuned_data.get("scenario_link"),
             is_baseline=False,
             status="tuned",
-            tuning_metadata=tuning_metadata,
+            tuning_metadata=tuning_metadata.dict(),
         )
 
         logger.info(

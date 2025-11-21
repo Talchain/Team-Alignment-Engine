@@ -33,6 +33,11 @@ class AlignmentSession(BaseModel):
     # Decision
     selected_option_id: Optional[UUID] = None
 
+    # Phase C: Multi-round deliberation support
+    parent_session_id: Optional[UUID] = None
+    reopened_from_id: Optional[UUID] = None
+    chain_depth: int = 0
+
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

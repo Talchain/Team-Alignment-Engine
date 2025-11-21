@@ -114,7 +114,7 @@ class AIOptionGenerator:
                 scenario_link=option_data.get("scenario_link"),
                 is_baseline=False,
                 status="ai_generated",
-                ai_generation_metadata=ai_metadata,
+                ai_generation_metadata=ai_metadata.dict(),
             )
 
             options.append(option)

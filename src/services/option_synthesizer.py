@@ -119,7 +119,7 @@ class OptionSynthesizer:
             scenario_link=synthesized_data.get("scenario_link"),
             is_baseline=False,
             status="synthesized",
-            synthesis_metadata=synthesis_metadata,
+            synthesis_metadata=synthesis_metadata.dict(),
         )
 
         logger.info(

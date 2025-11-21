@@ -34,6 +34,11 @@ class ProposedOption(BaseModel):
     status: str = "proposed"  # proposed, validating, validated, rejected
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Phase C: AI-powered option metadata
+    ai_generation_metadata: Optional[Dict] = None  # AIGenerationMetadata
+    synthesis_metadata: Optional[Dict] = None  # SynthesisMetadata
+    tuning_metadata: Optional[Dict] = None  # TuningMetadata
+
     @field_validator("key_assumptions")
     @classmethod
     def validate_assumptions(cls, v: List[Dict]) -> List[Dict]:

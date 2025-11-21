@@ -1,7 +1,7 @@
 """Profile-related models."""
 
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime
 from uuid import UUID, uuid4
 

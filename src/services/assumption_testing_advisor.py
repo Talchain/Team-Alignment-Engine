@@ -69,8 +69,8 @@ class AssumptionTestingAdvisor:
             {
                 "assumption_id": a.assumption_id,
                 "assumption_text": a.assumption_text,
-                "evidence_level": a.evidence_level.value,
-                "impact_level": a.impact_level.value,
+                "evidence_level": a.evidence_strength.value,
+                "impact_level": a.impact_if_wrong.value,
                 "source": a.source,
             }
             for a in assumptions
@@ -149,8 +149,8 @@ class AssumptionTestingAdvisor:
                 "strong": 0.0,
             }
 
-            impact = impact_scores.get(assumption.impact_level.value, 1.0)
-            evidence_inverse = evidence_scores.get(assumption.evidence_level.value, 1.0)
+            impact = impact_scores.get(assumption.impact_if_wrong.value, 1.0)
+            evidence_inverse = evidence_scores.get(assumption.evidence_strength.value, 1.0)
 
             # Priority = impact * (4 - evidence)
             # This gives highest score to high impact + low evidence
@@ -166,8 +166,8 @@ class AssumptionTestingAdvisor:
                 "top_priority": (
                     {
                         "id": prioritized[0].assumption_id,
-                        "impact": prioritized[0].impact_level.value,
-                        "evidence": prioritized[0].evidence_level.value,
+                        "impact": prioritized[0].impact_if_wrong.value,
+                        "evidence": prioritized[0].evidence_strength.value,
                     }
                     if prioritized
                     else None

@@ -223,22 +223,22 @@ class TestAssumptionTestingAdvisor:
             AssumptionStrength(
                 assumption_id="low_priority",
                 assumption_text="Low impact, strong evidence",
-                evidence_level=EvidenceLevel.STRONG,
-                impact_level=ImpactLevel.LOW,
+                evidence_strength=EvidenceLevel.STRONG,
+                impact_if_wrong=ImpactLevel.LOW,
                 source="test",
             ),
             AssumptionStrength(
                 assumption_id="high_priority",
                 assumption_text="High impact, weak evidence",
-                evidence_level=EvidenceLevel.WEAK,
-                impact_level=ImpactLevel.CRITICAL,
+                evidence_strength=EvidenceLevel.WEAK,
+                impact_if_wrong=ImpactLevel.CRITICAL,
                 source="test",
             ),
             AssumptionStrength(
                 assumption_id="medium_priority",
                 assumption_text="Medium impact, medium evidence",
-                evidence_level=EvidenceLevel.MEDIUM,
-                impact_level=ImpactLevel.MEDIUM,
+                evidence_strength=EvidenceLevel.MEDIUM,
+                impact_if_wrong=ImpactLevel.MEDIUM,
                 source="test",
             ),
         ]
