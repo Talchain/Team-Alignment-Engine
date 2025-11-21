@@ -49,6 +49,33 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: List[str] = ["http://localhost:3000"]
 
+    # Phase D: WebSocket Configuration
+    websocket_heartbeat_interval: int = 30  # seconds
+    websocket_max_connections_per_session: int = 50
+    websocket_idle_timeout: int = 300  # 5 minutes
+    websocket_message_max_size: int = 1048576  # 1MB
+
+    # Phase D: Analytics Configuration
+    analytics_cache_ttl: int = 300  # 5 minutes
+    patterns_cache_ttl: int = 604800  # 7 days
+    portfolio_max_sessions: int = 500
+
+    # Phase D: Performance Configuration
+    request_timeout: int = 30  # seconds
+    dependency_graph_timeout: int = 5  # seconds
+    portfolio_query_timeout: int = 10  # seconds
+
+    # Phase D: Feature Flags
+    feature_portfolio_analytics_enabled: bool = True
+    feature_realtime_collaboration_enabled: bool = True
+    feature_decision_dependencies_enabled: bool = True
+    feature_organizational_patterns_enabled: bool = True
+    feature_advanced_analytics_enabled: bool = True
+    feature_cross_team_coordination_enabled: bool = True
+
+    # Phase D: CEE Mock Configuration
+    cee_use_mock: bool = True  # Set to false when real CEE ready
+
     def get_cors_origins(self) -> List[str]:
         """Parse CORS origins from comma-separated string or list."""
         if isinstance(self.cors_origins, str):
