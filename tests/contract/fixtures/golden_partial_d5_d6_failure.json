@@ -1,0 +1,67 @@
+{
+  "session_id": "850e8400-e29b-41d4-a716-446655440003",
+  "organization_id": "org-degraded-test",
+  "timestamp": "2025-11-21T12:20:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-degraded-001",
+  "alignment": {
+    "session_state": "deliberating",
+    "stakeholder_count": 2,
+    "perspectives_collected": 2,
+    "options_proposed": 1,
+    "consensus_level": 0.65,
+    "shared_ground": {
+      "summary": "Basic alignment on problem statement",
+      "common_goal_weights": {
+        "efficiency": 0.8
+      },
+      "aligned_priorities": [
+        "Improve workflow"
+      ]
+    },
+    "disagreements": {
+      "summary": "Limited disagreement analysis pending",
+      "axes": []
+    }
+  },
+  "decision_quality": {
+    "health_score": 0.68,
+    "risk_flags": [],
+    "causally_validated": false,
+    "assumption_strength": 0.6,
+    "minority_concerns": []
+  },
+  "organizational_context": {
+    "similar_decisions": [
+      {
+        "session_id": "session-workflow-v1",
+        "outcome": "neutral",
+        "similarity": 0.65,
+        "key_lessons": [
+          "Stakeholder buy-in crucial"
+        ],
+        "timestamp": "2025-08-15T10:00:00Z"
+      }
+    ],
+    "dependencies": [],
+    "trend_insights": null,
+    "conflicts": []
+  },
+  "collaboration": {
+    "active_stakeholders": ["user-001"],
+    "recent_actions": []
+  },
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": true,
+      "d2_realtime_collaboration": true,
+      "d3_decision_dependencies": true,
+      "d4_organizational_patterns": true,
+      "d5_advanced_analytics": false,
+      "d6_cross_team_coordination": false
+    },
+    "degraded": true,
+    "degradation_reason": "Capabilities unavailable: d5_analytics, d6_coordination"
+  }
+}

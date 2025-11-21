@@ -1,0 +1,73 @@
+{
+  "session_id": "750e8400-e29b-41d4-a716-446655440002",
+  "organization_id": "org-collaboration-test",
+  "timestamp": "2025-11-21T12:15:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-d2-only-001",
+  "alignment": null,
+  "decision_quality": null,
+  "organizational_context": {
+    "similar_decisions": [],
+    "dependencies": [],
+    "trend_insights": null,
+    "conflicts": []
+  },
+  "collaboration": {
+    "active_stakeholders": [
+      "user-alice-001",
+      "user-bob-002",
+      "user-charlie-003"
+    ],
+    "recent_actions": [
+      {
+        "user_id": "user-alice-001",
+        "action_type": "vote_cast",
+        "timestamp": "2025-11-21T12:14:30Z",
+        "metadata": {
+          "option_id": "opt-approach-a",
+          "vote_strength": "moderate"
+        }
+      },
+      {
+        "user_id": "user-bob-002",
+        "action_type": "concern_raised",
+        "timestamp": "2025-11-21T12:13:00Z",
+        "metadata": {
+          "concern_id": "concern-technical-debt",
+          "severity": "high"
+        }
+      },
+      {
+        "user_id": "user-charlie-003",
+        "action_type": "perspective_added",
+        "timestamp": "2025-11-21T12:12:00Z",
+        "metadata": {
+          "perspective_type": "technical",
+          "key_points": ["Performance implications", "Scalability concerns"]
+        }
+      },
+      {
+        "user_id": "user-alice-001",
+        "action_type": "option_proposed",
+        "timestamp": "2025-11-21T12:10:00Z",
+        "metadata": {
+          "option_id": "opt-approach-a",
+          "title": "Incremental migration approach"
+        }
+      }
+    ]
+  },
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": false,
+      "d2_realtime_collaboration": true,
+      "d3_decision_dependencies": false,
+      "d4_organizational_patterns": false,
+      "d5_advanced_analytics": false,
+      "d6_cross_team_coordination": false
+    },
+    "degraded": false,
+    "degradation_reason": null
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "session_id": null,
+  "organization_id": "org-analytics-test",
+  "timestamp": "2025-11-21T12:05:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-d5-only-001",
+  "alignment": null,
+  "decision_quality": null,
+  "organizational_context": {
+    "similar_decisions": [],
+    "dependencies": [],
+    "trend_insights": {
+      "organization_decision_velocity": "on pace with baseline",
+      "quality_trend": "stable",
+      "forecast": {
+        "velocity_forecast": [
+          {"timestamp": 1705881600.0, "value": 9.8},
+          {"timestamp": 1705968000.0, "value": 10.1},
+          {"timestamp": 1706054400.0, "value": 10.0},
+          {"timestamp": 1706140800.0, "value": 9.9}
+        ],
+        "quality_forecast": [
+          {"timestamp": 1705881600.0, "value": 7.5},
+          {"timestamp": 1705968000.0, "value": 7.5},
+          {"timestamp": 1706054400.0, "value": 7.6}
+        ],
+        "confidence_intervals": [
+          {"timestamp": 1705881600.0, "lower": 7.8, "upper": 11.8},
+          {"timestamp": 1705968000.0, "lower": 8.1, "upper": 12.1},
+          {"timestamp": 1706054400.0, "lower": 8.0, "upper": 12.0}
+        ],
+        "trend_strength": 0.65
+      }
+    },
+    "conflicts": []
+  },
+  "collaboration": null,
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": false,
+      "d2_realtime_collaboration": false,
+      "d3_decision_dependencies": false,
+      "d4_organizational_patterns": false,
+      "d5_advanced_analytics": true,
+      "d6_cross_team_coordination": false
+    },
+    "degraded": false,
+    "degradation_reason": null
+  }
+}

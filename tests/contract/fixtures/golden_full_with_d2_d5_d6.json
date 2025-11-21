@@ -1,0 +1,166 @@
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "organization_id": "org-456",
+  "timestamp": "2025-11-21T12:00:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-d2d5d6-001",
+  "alignment": {
+    "session_state": "deliberating",
+    "stakeholder_count": 4,
+    "perspectives_collected": 4,
+    "options_proposed": 3,
+    "consensus_level": 0.78,
+    "shared_ground": {
+      "summary": "All stakeholders agree on customer-first approach",
+      "common_goal_weights": {
+        "customer_satisfaction": 0.95,
+        "revenue_impact": 0.8,
+        "implementation_speed": 0.7
+      },
+      "aligned_priorities": [
+        "Solve customer pain points",
+        "Quick time to market",
+        "Scalable solution"
+      ]
+    },
+    "disagreements": {
+      "summary": "Disagreement on build vs buy decision",
+      "axes": [
+        {
+          "dimension": "feasibility",
+          "stakeholders_involved": ["CTO", "VP Product"],
+          "severity_score": 0.5,
+          "description": "CTO prefers build for control, VP Product prefers buy for speed"
+        }
+      ]
+    }
+  },
+  "decision_quality": {
+    "health_score": 0.81,
+    "risk_flags": [],
+    "causally_validated": true,
+    "assumption_strength": 0.85,
+    "minority_concerns": []
+  },
+  "organizational_context": {
+    "similar_decisions": [
+      {
+        "session_id": "session-previous-build-vs-buy",
+        "outcome": "success",
+        "similarity": 0.92,
+        "key_lessons": [
+          "Build gave us competitive advantage",
+          "Initial velocity was slower but paid off long-term",
+          "Strong internal expertise was critical"
+        ],
+        "timestamp": "2025-09-10T15:00:00Z"
+      }
+    ],
+    "dependencies": [
+      {
+        "dependent_session_id": "session-budget-2025",
+        "dependency_type": "blocks",
+        "team": "Finance",
+        "description": "Waiting for Q1 budget approval",
+        "status": "pending"
+      }
+    ],
+    "trend_insights": {
+      "organization_decision_velocity": "22% faster than baseline",
+      "quality_trend": "improving",
+      "forecast": {
+        "velocity_forecast": [
+          {"timestamp": 1705881600.0, "value": 7.8},
+          {"timestamp": 1705968000.0, "value": 7.6},
+          {"timestamp": 1706054400.0, "value": 7.5},
+          {"timestamp": 1706140800.0, "value": 7.3},
+          {"timestamp": 1706227200.0, "value": 7.2}
+        ],
+        "quality_forecast": [
+          {"timestamp": 1705881600.0, "value": 8.1},
+          {"timestamp": 1705968000.0, "value": 8.2},
+          {"timestamp": 1706054400.0, "value": 8.3}
+        ],
+        "confidence_intervals": [
+          {"timestamp": 1705881600.0, "lower": 5.8, "upper": 9.8},
+          {"timestamp": 1705968000.0, "lower": 5.6, "upper": 9.6},
+          {"timestamp": 1706054400.0, "lower": 5.5, "upper": 9.5}
+        ],
+        "trend_strength": 0.72
+      }
+    },
+    "conflicts": [
+      {
+        "conflicting_session_id": "session-platform-redesign",
+        "conflict_type": "resource",
+        "severity": "high",
+        "resolution_suggestion": "Stagger timelines to reduce Engineering team overload"
+      },
+      {
+        "conflicting_session_id": "session-marketing-campaign",
+        "conflict_type": "temporal",
+        "severity": "medium",
+        "resolution_suggestion": "Coordinate launch dates to avoid resource contention"
+      }
+    ]
+  },
+  "collaboration": {
+    "active_stakeholders": [
+      "user-cto-789",
+      "user-vp-product-101",
+      "user-eng-lead-202",
+      "user-pm-303"
+    ],
+    "recent_actions": [
+      {
+        "user_id": "user-cto-789",
+        "action_type": "vote_cast",
+        "timestamp": "2025-11-21T11:58:00Z",
+        "metadata": {
+          "option_id": "opt-build-internal",
+          "vote_strength": "strong"
+        }
+      },
+      {
+        "user_id": "user-vp-product-101",
+        "action_type": "concern_raised",
+        "timestamp": "2025-11-21T11:55:00Z",
+        "metadata": {
+          "concern_id": "concern-time-to-market",
+          "severity": "medium"
+        }
+      },
+      {
+        "user_id": "user-eng-lead-202",
+        "action_type": "option_proposed",
+        "timestamp": "2025-11-21T11:52:00Z",
+        "metadata": {
+          "option_id": "opt-hybrid-approach",
+          "title": "Hybrid: Buy foundation, build differentiators"
+        }
+      },
+      {
+        "user_id": "user-pm-303",
+        "action_type": "perspective_added",
+        "timestamp": "2025-11-21T11:50:00Z",
+        "metadata": {
+          "perspective_id": "persp-customer-feedback",
+          "key_insight": "Customers want feature parity with competitor X"
+        }
+      }
+    ]
+  },
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": true,
+      "d2_realtime_collaboration": true,
+      "d3_decision_dependencies": true,
+      "d4_organizational_patterns": true,
+      "d5_advanced_analytics": true,
+      "d6_cross_team_coordination": true
+    },
+    "degraded": false,
+    "degradation_reason": null
+  }
+}

@@ -44,14 +44,16 @@ User → PLoT UI → PLoT Engine → TAE (internal) → PLoT Engine → PLoT UI
 
 ### Capability Matrix
 
-| Capability | POC v02 Status | Description |
+| Capability | Status | Description |
 |------------|----------------|-------------|
-| `core_alignment` (D1) | ✅ MUST HAVE | Session state, shared ground, disagreements |
-| `d3_dependencies` | ✅ MUST HAVE | Decision dependency graph |
-| `d4_patterns` | ✅ MUST HAVE | Organizational patterns from retrospectives |
-| `d2_collaboration` | ❌ DEFERRED | Real-time collaboration (use HTTP polling) |
-| `d5_analytics` | ❌ DEFERRED | Advanced analytics & trend forecasting |
-| `d6_coordination` | ❌ DEFERRED | Cross-team coordination |
+| `core_alignment` (D1) | ✅ AVAILABLE | Session state, shared ground, disagreements |
+| `d3_dependencies` | ✅ AVAILABLE | Decision dependency graph |
+| `d4_patterns` | ✅ AVAILABLE | Organizational patterns from retrospectives |
+| `d2_collaboration` | ✅ AVAILABLE (Phase 3) | Real-time collaboration (HTTP polling mode) |
+| `d5_analytics` | ✅ AVAILABLE (Phase 3) | Advanced analytics & trend forecasting |
+| `d6_coordination` | ✅ AVAILABLE (Phase 3) | Cross-team conflict detection |
+
+**Note:** D2/D5/D6 capabilities were added in Phase 3 and are now production-ready.
 
 ---
 
@@ -114,12 +116,12 @@ RATE_LIMIT_REQUESTS=100
 RATE_LIMIT_WINDOW=60
 
 # Feature Flags (Phase D capabilities)
-FEATURE_PORTFOLIO_ANALYTICS_ENABLED=true       # D1
-FEATURE_DECISION_DEPENDENCIES_ENABLED=true     # D3
-FEATURE_ORGANIZATIONAL_PATTERNS_ENABLED=true   # D4
-FEATURE_COLLABORATION_ENABLED=false            # D2 (deferred)
-FEATURE_ANALYTICS_ENGINE_ENABLED=false         # D5 (deferred)
-FEATURE_COORDINATION_ENABLED=false             # D6 (deferred)
+FEATURE_PORTFOLIO_ANALYTICS_ENABLED=true             # D1 - Core alignment
+FEATURE_DECISION_DEPENDENCIES_ENABLED=true           # D3 - Dependency graph
+FEATURE_ORGANIZATIONAL_PATTERNS_ENABLED=true         # D4 - Pattern learning
+FEATURE_REALTIME_COLLABORATION_ENABLED=true          # D2 - Collaboration (Phase 3)
+FEATURE_ADVANCED_ANALYTICS_ENABLED=true              # D5 - Analytics & forecasting (Phase 3)
+FEATURE_CROSS_TEAM_COORDINATION_ENABLED=true         # D6 - Conflict detection (Phase 3)
 ```
 
 ### Generating API Keys
@@ -215,14 +217,23 @@ Contract tests validate API schema stability using golden fixtures.
 # Run contract tests
 poetry run pytest tests/contract/test_plot_orchestration_contract.py -v
 
-# Expected: 23 passing tests
+# Expected: 32 passing tests (23 base + 9 Phase 3 tests)
 ```
 
 **Golden Fixtures** (in `tests/contract/fixtures/`):
+
+**Base Fixtures (D1/D3/D4):**
 - `golden_full_response.json` - All D1/D3/D4 capabilities succeed
 - `golden_partial_d1d3.json` - Subset request (D1+D3 only)
 - `golden_partial_failure.json` - D4 fails, D1/D3 succeed
 - `golden_error_response.json` - Complete failure
+
+**Phase 3 Fixtures (D2/D5/D6):**
+- `golden_full_with_d2_d5_d6.json` - All capabilities including D2/D5/D6
+- `golden_d5_analytics_only.json` - D5 analytics only
+- `golden_d6_conflicts_only.json` - D6 cross-team conflicts only
+- `golden_d2_collaboration_only.json` - D2 collaboration only
+- `golden_partial_d5_d6_failure.json` - D5/D6 fail, others succeed
 
 **PLoT Team Usage:**
 PLoT team can use golden fixtures to:
@@ -621,19 +632,45 @@ tail -f tae.log | grep -E "(DEBUG|ERROR)"
         "status": "pending | resolved | blocked"
       }
     ],
-    "trend_insights": null,  // Deferred for POC v02
-    "conflicts": []  // Deferred for POC v02
+    "trend_insights": {  // D5: Advanced Analytics (Phase 3)
+      "organization_decision_velocity": "string",  // e.g., "22% faster than baseline"
+      "quality_trend": "improving | declining | stable",
+      "forecast": {
+        "velocity_forecast": [{"timestamp": "float", "value": "float"}],
+        "quality_forecast": [{"timestamp": "float", "value": "float"}],
+        "confidence_intervals": [{"timestamp": "float", "lower": "float", "upper": "float"}],
+        "trend_strength": "float (0-1)"
+      }
+    },
+    "conflicts": [  // D6: Cross-Team Coordination (Phase 3)
+      {
+        "conflicting_session_id": "string",
+        "conflict_type": "resource | temporal | scope",
+        "severity": "low | medium | high",
+        "resolution_suggestion": "string | null"
+      }
+    ]
   },
-  "collaboration": null,  // Deferred for POC v02
+  "collaboration": {  // D2: Real-Time Collaboration (Phase 3, HTTP polling mode)
+    "active_stakeholders": ["string"],  // User IDs active in last 5 minutes
+    "recent_actions": [
+      {
+        "user_id": "string",
+        "action_type": "vote_cast | concern_raised | option_proposed | perspective_added",
+        "timestamp": "datetime",
+        "metadata": {}
+      }
+    ]
+  },
   "availability": {
     "tae_available": "boolean",
     "capabilities": {
       "d1_portfolio_analytics": "boolean",
-      "d2_realtime_collaboration": false,  // Deferred
+      "d2_realtime_collaboration": "boolean",  // Phase 3: Available
       "d3_decision_dependencies": "boolean",
       "d4_organizational_patterns": "boolean",
-      "d5_advanced_analytics": false,  // Deferred
-      "d6_cross_team_coordination": false  // Deferred
+      "d5_advanced_analytics": "boolean",  // Phase 3: Available
+      "d6_cross_team_coordination": "boolean"  // Phase 3: Available
     },
     "degraded": "boolean",
     "degradation_reason": "string | null"
@@ -646,6 +683,181 @@ tail -f tae.log | grep -E "(DEBUG|ERROR)"
 - `403 Forbidden`: Invalid API key
 - `422 Unprocessable Entity`: Invalid request payload
 - `500 Internal Server Error`: TAE service error (returns error payload with availability status)
+
+---
+
+## 8. Phase 3 Capabilities (D2/D5/D6)
+
+### 8.1 D5: Advanced Analytics
+
+**Description:** Provides trend analysis, forecasting, and benchmarking for organizational decision-making patterns.
+
+**Request Example:**
+```bash
+curl -X POST http://localhost:8000/api/v1/plot/alignment-session \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <API_KEY>" \
+  -d '{
+    "session_id": null,
+    "organization_id": "org-analytics-123",
+    "capabilities": ["d5_analytics"]
+  }'
+```
+
+**Response Fields:**
+- `trend_insights.organization_decision_velocity`: Velocity comparison vs 10-day baseline
+  - Example: "22% faster than baseline", "on pace with baseline", "15% slower than baseline"
+- `trend_insights.quality_trend`: Quality trend direction
+  - Values: "improving", "declining", "stable"
+- `trend_insights.forecast`: Statistical forecasting data
+  - `velocity_forecast`: Next 7 days of decision time predictions
+  - `quality_forecast`: Next 7 days of quality predictions
+  - `confidence_intervals`: 95% confidence bands
+  - `trend_strength`: R-squared value (0-1) indicating trend strength
+
+**Use Cases:**
+- Portfolio-level analytics (no session_id required)
+- Organizational health monitoring
+- Predictive capacity planning
+- Quality improvement tracking
+
+**Feature Flag:**
+```bash
+FEATURE_ADVANCED_ANALYTICS_ENABLED=true
+```
+
+---
+
+### 8.2 D6: Cross-Team Coordination
+
+**Description:** Detects and suggests resolutions for conflicts between multiple teams' concurrent decisions.
+
+**Request Example:**
+```bash
+curl -X POST http://localhost:8000/api/v1/plot/alignment-session \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <API_KEY>" \
+  -d '{
+    "session_id": "650e8400-e29b-41d4-a716-446655440001",
+    "organization_id": "org-123",
+    "capabilities": ["d6_coordination"]
+  }'
+```
+
+**Conflict Types:**
+- **`resource`**: Same stakeholders overloaded across multiple decisions
+  - Severity: High
+  - Example: "DevOps team in 3+ simultaneous decisions"
+- **`temporal`**: Timeline overlaps causing scheduling conflicts
+  - Severity: Medium
+  - Example: "Launch dates conflict with Q4 planning"
+- **`scope`**: Overlapping decision boundaries
+  - Severity: Medium
+  - Example: "Two teams deciding on same feature"
+
+**Response Fields:**
+- `conflicts[].conflicting_session_id`: Session causing the conflict
+- `conflicts[].conflict_type`: Type of conflict (resource/temporal/scope)
+- `conflicts[].severity`: Priority level (low/medium/high)
+- `conflicts[].resolution_suggestion`: AI-generated resolution suggestion
+
+**Use Cases:**
+- Multi-team coordination
+- Resource contention detection
+- Timeline conflict resolution
+- Scope clarification
+
+**Feature Flag:**
+```bash
+FEATURE_CROSS_TEAM_COORDINATION_ENABLED=true
+```
+
+---
+
+### 8.3 D2: Real-Time Collaboration (HTTP Polling Mode)
+
+**Description:** Provides collaboration awareness via HTTP polling (5-minute active window). WebSocket mode is available but not required for POC v02.
+
+**Request Example:**
+```bash
+curl -X POST http://localhost:8000/api/v1/plot/alignment-session \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <API_KEY>" \
+  -d '{
+    "session_id": "750e8400-e29b-41d4-a716-446655440002",
+    "organization_id": "org-123",
+    "capabilities": ["d2_collaboration"]
+  }'
+```
+
+**Response Fields:**
+- `collaboration.active_stakeholders`: User IDs active in last 5 minutes
+- `collaboration.recent_actions`: Last 10 collaboration actions
+  - Action types: `vote_cast`, `concern_raised`, `option_proposed`, `perspective_added`
+  - Each action includes: user_id, action_type, timestamp, metadata
+
+**HTTP Polling Pattern:**
+```javascript
+// Frontend polling example (every 30 seconds)
+setInterval(async () => {
+  const response = await fetch('/api/v1/plot/alignment-session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      organization_id: orgId,
+      capabilities: ['d2_collaboration']
+    })
+  });
+  const data = await response.json();
+  updateUI(data.collaboration);
+}, 30000);
+```
+
+**Use Cases:**
+- Active user presence indicators
+- Recent activity feed
+- Collaboration health monitoring
+- Action notifications
+
+**Feature Flag:**
+```bash
+FEATURE_REALTIME_COLLABORATION_ENABLED=true
+```
+
+---
+
+### 8.4 Requesting Multiple Capabilities
+
+You can request any combination of capabilities:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/plot/alignment-session \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: <API_KEY>" \
+  -d '{
+    "session_id": "session-123",
+    "organization_id": "org-456",
+    "capabilities": [
+      "core_alignment",
+      "d3_dependencies",
+      "d4_patterns",
+      "d2_collaboration",
+      "d5_analytics",
+      "d6_coordination"
+    ]
+  }'
+```
+
+**Graceful Degradation:**
+If individual capabilities fail, the response will:
+1. Set `availability.degraded = true`
+2. Indicate which capabilities failed in `availability.capabilities`
+3. Provide partial data for successful capabilities
+4. Include error details in `availability.degradation_reason`
 
 ---
 
@@ -666,6 +878,13 @@ tail -f tae.log | grep -E "(DEBUG|ERROR)"
 
 ---
 
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-11-21 (Phase 3 Complete)
 **Reviewer:** TAE Engineering Team
-**Status:** ✅ Ready for POC v02 Integration Testing
+**Status:** ✅ Ready for Production (All Phase D capabilities available)
+**Phase 3 Changes:**
+- ✅ D2: Real-Time Collaboration (HTTP polling mode)
+- ✅ D5: Advanced Analytics (trend analysis, forecasting)
+- ✅ D6: Cross-Team Coordination (conflict detection)
+- ✅ 15 new unit tests (61 total)
+- ✅ 9 new contract tests (32 total)
+- ✅ 5 new golden fixtures

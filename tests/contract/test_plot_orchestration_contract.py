@@ -59,6 +59,41 @@ def golden_error_response(fixtures_dir) -> Dict[str, Any]:
         return json.load(f)
 
 
+@pytest.fixture
+def golden_full_with_d2_d5_d6(fixtures_dir) -> Dict[str, Any]:
+    """Load golden fixture for full response with D2/D5/D6."""
+    with open(fixtures_dir / "golden_full_with_d2_d5_d6.json") as f:
+        return json.load(f)
+
+
+@pytest.fixture
+def golden_d5_analytics_only(fixtures_dir) -> Dict[str, Any]:
+    """Load golden fixture for D5 analytics only."""
+    with open(fixtures_dir / "golden_d5_analytics_only.json") as f:
+        return json.load(f)
+
+
+@pytest.fixture
+def golden_d6_conflicts_only(fixtures_dir) -> Dict[str, Any]:
+    """Load golden fixture for D6 conflicts only."""
+    with open(fixtures_dir / "golden_d6_conflicts_only.json") as f:
+        return json.load(f)
+
+
+@pytest.fixture
+def golden_d2_collaboration_only(fixtures_dir) -> Dict[str, Any]:
+    """Load golden fixture for D2 collaboration only."""
+    with open(fixtures_dir / "golden_d2_collaboration_only.json") as f:
+        return json.load(f)
+
+
+@pytest.fixture
+def golden_partial_d5_d6_failure(fixtures_dir) -> Dict[str, Any]:
+    """Load golden fixture for D5/D6 partial failure."""
+    with open(fixtures_dir / "golden_partial_d5_d6_failure.json") as f:
+        return json.load(f)
+
+
 # =============================================================================
 # SCHEMA VALIDATION TESTS
 # =============================================================================
@@ -445,3 +480,263 @@ def test_invalid_consensus_level_rejected():
             },
             disagreements={"summary": "Test", "axes": []},
         )
+
+
+# =============================================================================
+# D2/D5/D6 GOLDEN FIXTURE TESTS (Phase 3)
+# =============================================================================
+
+
+def test_golden_full_with_d2_d5_d6_validates(golden_full_with_d2_d5_d6):
+    """Test golden fixture with all D2/D5/D6 capabilities validates."""
+    payload = TaeTeamAlignmentPayload(**golden_full_with_d2_d5_d6)
+
+    # Verify metadata
+    assert payload.session_id == "550e8400-e29b-41d4-a716-446655440000"
+    assert payload.organization_id == "org-456"
+    assert payload.request_id == "plot-run-d2d5d6-001"
+
+    # Verify D1 (core alignment) present
+    assert payload.alignment is not None
+    assert payload.alignment.stakeholder_count == 4
+
+    # Verify D5 (analytics) present
+    assert payload.organizational_context.trend_insights is not None
+    assert "baseline" in payload.organizational_context.trend_insights.organization_decision_velocity
+    assert payload.organizational_context.trend_insights.quality_trend in ["improving", "declining", "stable"]
+    assert payload.organizational_context.trend_insights.forecast is not None
+
+    # Verify D6 (conflicts) present
+    assert len(payload.organizational_context.conflicts) == 2
+    assert payload.organizational_context.conflicts[0].conflict_type in ["resource", "temporal", "scope"]
+    assert payload.organizational_context.conflicts[0].severity in ["low", "medium", "high"]
+
+    # Verify D2 (collaboration) present
+    assert payload.collaboration is not None
+    assert len(payload.collaboration.active_stakeholders) == 4
+    assert len(payload.collaboration.recent_actions) == 4
+    assert payload.collaboration.recent_actions[0].action_type in [
+        "vote_cast", "concern_raised", "option_proposed", "perspective_added"
+    ]
+
+    # Verify all capabilities enabled
+    assert payload.availability.capabilities.d1_portfolio_analytics is True
+    assert payload.availability.capabilities.d2_realtime_collaboration is True
+    assert payload.availability.capabilities.d3_decision_dependencies is True
+    assert payload.availability.capabilities.d4_organizational_patterns is True
+    assert payload.availability.capabilities.d5_advanced_analytics is True
+    assert payload.availability.capabilities.d6_cross_team_coordination is True
+    assert payload.availability.degraded is False
+
+
+def test_golden_d5_analytics_only_validates(golden_d5_analytics_only):
+    """Test golden fixture for D5 analytics only validates."""
+    payload = TaeTeamAlignmentPayload(**golden_d5_analytics_only)
+
+    # Verify no session-level data (portfolio query)
+    assert payload.session_id is None
+    assert payload.alignment is None
+    assert payload.decision_quality is None
+
+    # Verify D5 analytics present
+    assert payload.organizational_context.trend_insights is not None
+    assert payload.organizational_context.trend_insights.organization_decision_velocity is not None
+    assert payload.organizational_context.trend_insights.quality_trend in ["improving", "declining", "stable"]
+
+    # Verify forecast data structure
+    assert "velocity_forecast" in payload.organizational_context.trend_insights.forecast
+    assert "quality_forecast" in payload.organizational_context.trend_insights.forecast
+    assert "confidence_intervals" in payload.organizational_context.trend_insights.forecast
+    assert "trend_strength" in payload.organizational_context.trend_insights.forecast
+
+    # Verify only D5 enabled
+    assert payload.availability.capabilities.d5_advanced_analytics is True
+    assert payload.availability.capabilities.d1_portfolio_analytics is False
+    assert payload.availability.capabilities.d2_realtime_collaboration is False
+    assert payload.availability.capabilities.d3_decision_dependencies is False
+    assert payload.availability.capabilities.d4_organizational_patterns is False
+    assert payload.availability.capabilities.d6_cross_team_coordination is False
+
+
+def test_golden_d6_conflicts_only_validates(golden_d6_conflicts_only):
+    """Test golden fixture for D6 conflicts only validates."""
+    payload = TaeTeamAlignmentPayload(**golden_d6_conflicts_only)
+
+    # Verify conflicts present
+    assert len(payload.organizational_context.conflicts) == 3
+
+    # Verify conflict structure
+    for conflict in payload.organizational_context.conflicts:
+        assert conflict.conflicting_session_id is not None
+        assert conflict.conflict_type in ["resource", "temporal", "scope"]
+        assert conflict.severity in ["low", "medium", "high"]
+        assert conflict.resolution_suggestion is not None
+
+    # Verify severity levels present
+    severities = [c.severity for c in payload.organizational_context.conflicts]
+    assert "high" in severities
+    assert "medium" in severities
+    assert "low" in severities
+
+    # Verify only D6 enabled
+    assert payload.availability.capabilities.d6_cross_team_coordination is True
+    assert payload.availability.capabilities.d1_portfolio_analytics is False
+    assert payload.availability.capabilities.d2_realtime_collaboration is False
+    assert payload.availability.capabilities.d3_decision_dependencies is False
+    assert payload.availability.capabilities.d4_organizational_patterns is False
+    assert payload.availability.capabilities.d5_advanced_analytics is False
+
+
+def test_golden_d2_collaboration_only_validates(golden_d2_collaboration_only):
+    """Test golden fixture for D2 collaboration only validates."""
+    payload = TaeTeamAlignmentPayload(**golden_d2_collaboration_only)
+
+    # Verify collaboration present
+    assert payload.collaboration is not None
+    assert len(payload.collaboration.active_stakeholders) == 3
+    assert len(payload.collaboration.recent_actions) == 4
+
+    # Verify action types
+    action_types = [a.action_type for a in payload.collaboration.recent_actions]
+    assert "vote_cast" in action_types
+    assert "concern_raised" in action_types
+    assert "perspective_added" in action_types
+    assert "option_proposed" in action_types
+
+    # Verify action structure
+    for action in payload.collaboration.recent_actions:
+        assert action.user_id is not None
+        assert action.action_type in [
+            "vote_cast", "concern_raised", "option_proposed", "perspective_added"
+        ]
+        assert action.timestamp is not None
+        assert action.metadata is not None
+
+    # Verify only D2 enabled
+    assert payload.availability.capabilities.d2_realtime_collaboration is True
+    assert payload.availability.capabilities.d1_portfolio_analytics is False
+    assert payload.availability.capabilities.d3_decision_dependencies is False
+    assert payload.availability.capabilities.d4_organizational_patterns is False
+    assert payload.availability.capabilities.d5_advanced_analytics is False
+    assert payload.availability.capabilities.d6_cross_team_coordination is False
+
+
+def test_golden_partial_d5_d6_failure_validates(golden_partial_d5_d6_failure):
+    """Test golden fixture for D5/D6 partial failure validates."""
+    payload = TaeTeamAlignmentPayload(**golden_partial_d5_d6_failure)
+
+    # Verify D1/D3/D4/D2 succeeded
+    assert payload.alignment is not None
+    assert len(payload.organizational_context.similar_decisions) > 0
+    assert payload.collaboration is not None
+
+    # Verify D5/D6 failed (null or empty)
+    assert payload.organizational_context.trend_insights is None
+    assert len(payload.organizational_context.conflicts) == 0
+
+    # Verify degraded status
+    assert payload.availability.degraded is True
+    assert "d5_analytics" in payload.availability.degradation_reason
+    assert "d6_coordination" in payload.availability.degradation_reason
+
+    # Verify capability flags reflect failure
+    assert payload.availability.capabilities.d1_portfolio_analytics is True
+    assert payload.availability.capabilities.d2_realtime_collaboration is True
+    assert payload.availability.capabilities.d3_decision_dependencies is True
+    assert payload.availability.capabilities.d4_organizational_patterns is True
+    assert payload.availability.capabilities.d5_advanced_analytics is False
+    assert payload.availability.capabilities.d6_cross_team_coordination is False
+
+
+# =============================================================================
+# D2/D5/D6 DATA VALIDATION TESTS
+# =============================================================================
+
+
+def test_trend_insights_structure(golden_full_with_d2_d5_d6):
+    """Test trend insights (D5) have correct structure."""
+    payload = TaeTeamAlignmentPayload(**golden_full_with_d2_d5_d6)
+
+    assert payload.organizational_context.trend_insights is not None
+    trend = payload.organizational_context.trend_insights
+
+    # Verify required fields
+    assert hasattr(trend, "organization_decision_velocity")
+    assert hasattr(trend, "quality_trend")
+    assert hasattr(trend, "forecast")
+
+    # Verify forecast structure
+    assert "velocity_forecast" in trend.forecast
+    assert "quality_forecast" in trend.forecast
+    assert "confidence_intervals" in trend.forecast
+    assert "trend_strength" in trend.forecast
+
+    # Verify trend strength is 0-1
+    assert 0.0 <= trend.forecast["trend_strength"] <= 1.0
+
+
+def test_conflicts_structure(golden_full_with_d2_d5_d6):
+    """Test conflicts (D6) have correct structure."""
+    payload = TaeTeamAlignmentPayload(**golden_full_with_d2_d5_d6)
+
+    for conflict in payload.organizational_context.conflicts:
+        assert hasattr(conflict, "conflicting_session_id")
+        assert hasattr(conflict, "conflict_type")
+        assert hasattr(conflict, "severity")
+        assert hasattr(conflict, "resolution_suggestion")
+
+        # Verify enum values
+        assert conflict.conflict_type in ["resource", "temporal", "scope"]
+        assert conflict.severity in ["low", "medium", "high"]
+
+
+def test_collaboration_structure(golden_full_with_d2_d5_d6):
+    """Test collaboration (D2) has correct structure."""
+    payload = TaeTeamAlignmentPayload(**golden_full_with_d2_d5_d6)
+
+    assert payload.collaboration is not None
+    collab = payload.collaboration
+
+    # Verify required fields
+    assert hasattr(collab, "active_stakeholders")
+    assert hasattr(collab, "recent_actions")
+
+    # Verify action structure
+    for action in collab.recent_actions:
+        assert hasattr(action, "user_id")
+        assert hasattr(action, "action_type")
+        assert hasattr(action, "timestamp")
+        assert hasattr(action, "metadata")
+
+        # Verify action type enum
+        assert action.action_type in [
+            "vote_cast", "concern_raised", "option_proposed", "perspective_added"
+        ]
+
+
+def test_all_d2_d5_d6_fixtures_serialize():
+    """Test all D2/D5/D6 golden fixtures serialize correctly."""
+    fixtures_dir = Path(__file__).parent / "fixtures"
+
+    d2_d5_d6_fixtures = [
+        "golden_full_with_d2_d5_d6.json",
+        "golden_d5_analytics_only.json",
+        "golden_d6_conflicts_only.json",
+        "golden_d2_collaboration_only.json",
+        "golden_partial_d5_d6_failure.json",
+    ]
+
+    for fixture_name in d2_d5_d6_fixtures:
+        fixture_path = fixtures_dir / fixture_name
+        with open(fixture_path) as f:
+            data = json.load(f)
+
+        # Should validate
+        payload = TaeTeamAlignmentPayload(**data)
+
+        # Should serialize
+        json_str = payload.model_dump_json()
+
+        # Should deserialize
+        payload2 = TaeTeamAlignmentPayload.model_validate_json(json_str)
+        assert payload2.organization_id == payload.organization_id

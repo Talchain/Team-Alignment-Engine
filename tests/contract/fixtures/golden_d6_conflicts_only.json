@@ -1,0 +1,48 @@
+{
+  "session_id": "650e8400-e29b-41d4-a716-446655440001",
+  "organization_id": "org-coordination-test",
+  "timestamp": "2025-11-21T12:10:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-d6-only-001",
+  "alignment": null,
+  "decision_quality": null,
+  "organizational_context": {
+    "similar_decisions": [],
+    "dependencies": [],
+    "trend_insights": null,
+    "conflicts": [
+      {
+        "conflicting_session_id": "session-infra-upgrade",
+        "conflict_type": "resource",
+        "severity": "high",
+        "resolution_suggestion": "DevOps team overloaded - defer one initiative"
+      },
+      {
+        "conflicting_session_id": "session-product-launch",
+        "conflict_type": "scope",
+        "severity": "medium",
+        "resolution_suggestion": "Overlapping feature sets - merge or clarify boundaries"
+      },
+      {
+        "conflicting_session_id": "session-q4-planning",
+        "conflict_type": "temporal",
+        "severity": "low",
+        "resolution_suggestion": "Timeline overlap minimal - proceed with coordination"
+      }
+    ]
+  },
+  "collaboration": null,
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": false,
+      "d2_realtime_collaboration": false,
+      "d3_decision_dependencies": false,
+      "d4_organizational_patterns": false,
+      "d5_advanced_analytics": false,
+      "d6_cross_team_coordination": true
+    },
+    "degraded": false,
+    "degradation_reason": null
+  }
+}

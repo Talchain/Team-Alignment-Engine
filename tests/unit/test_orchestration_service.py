@@ -15,9 +15,14 @@ from src.models.plot import (
     DecisionQualityMetrics,
     SimilarDecision,
     DecisionDependency,
+    TrendInsights,
+    CrossTeamConflict,
+    CollaborationData,
+    RecentAction,
 )
 from src.models.session import AlignmentSession
 from src.models.enums import SessionStatus
+from src.models.portfolio import TrendAnalysis, ConflictDetection
 
 
 @pytest.fixture
@@ -45,11 +50,32 @@ def mock_pattern_analyzer():
 
 
 @pytest.fixture
+def mock_analytics_engine():
+    """Create mock analytics engine (D5)."""
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_coordination_manager():
+    """Create mock cross-team coordinator (D6)."""
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_collaboration_manager():
+    """Create mock collaboration manager (D2)."""
+    return AsyncMock()
+
+
+@pytest.fixture
 def orchestration_service(
     mock_db,
     mock_session_manager,
     mock_dependency_manager,
     mock_pattern_analyzer,
+    mock_analytics_engine,
+    mock_coordination_manager,
+    mock_collaboration_manager,
 ):
     """Create orchestration service with mocked dependencies."""
     return OrchestrationService(
@@ -57,6 +83,9 @@ def orchestration_service(
         session_manager=mock_session_manager,
         dependency_manager=mock_dependency_manager,
         pattern_analyzer=mock_pattern_analyzer,
+        analytics_engine=mock_analytics_engine,
+        coordination_manager=mock_coordination_manager,
+        collaboration_manager=mock_collaboration_manager,
     )
 
 
@@ -760,3 +789,439 @@ def test_calculate_consensus_no_shared_ground(orchestration_service):
 
     # Assert
     assert consensus == 0.5  # Default
+
+
+# =============================================================================
+# TEST D5: ADVANCED ANALYTICS
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_analytics_success(orchestration_service, mock_analytics_engine):
+    """Test successful analytics retrieval (D5)."""
+    # Setup - mock trend analysis data
+    org_uuid = uuid4()
+
+    # Mock velocity trend
+    velocity_trend = MagicMock(spec=TrendAnalysis)
+    velocity_trend.data_points = [
+        {"timestamp": 1705881600.0, "value": 8.0},
+        {"timestamp": 1705968000.0, "value": 9.0},
+        {"timestamp": 1706054400.0, "value": 7.5},
+        {"timestamp": 1706140800.0, "value": 8.5},
+    ]
+    velocity_trend.trend_direction = "stable"
+    velocity_trend.trend_strength = 0.65
+    velocity_trend.forecast_30days = [
+        {"timestamp": 1706227200.0, "value": 8.2},
+        {"timestamp": 1706313600.0, "value": 8.3},
+        {"timestamp": 1706400000.0, "value": 8.4},
+    ]
+    velocity_trend.confidence_intervals = [
+        {"timestamp": 1706227200.0, "lower": 6.2, "upper": 10.2},
+        {"timestamp": 1706313600.0, "lower": 6.3, "upper": 10.3},
+        {"timestamp": 1706400000.0, "lower": 6.4, "upper": 10.4},
+    ]
+
+    # Mock quality trend
+    quality_trend = MagicMock(spec=TrendAnalysis)
+    quality_trend.data_points = [
+        {"timestamp": 1705881600.0, "value": 7.5},
+        {"timestamp": 1705968000.0, "value": 7.8},
+    ]
+    quality_trend.trend_direction = "increasing"
+    quality_trend.trend_strength = 0.72
+    quality_trend.forecast_30days = [
+        {"timestamp": 1706227200.0, "value": 8.0},
+    ]
+
+    mock_analytics_engine.analyze_trends.side_effect = [velocity_trend, quality_trend]
+
+    # Execute
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_advanced_analytics_enabled = True
+        result = await orchestration_service._get_analytics(str(org_uuid))
+
+    # Assert
+    assert result is not None
+    assert isinstance(result, TrendInsights)
+    assert "baseline" in result.organization_decision_velocity.lower()
+    assert result.quality_trend == "improving"  # increasing → improving
+    assert result.forecast is not None
+    assert "velocity_forecast" in result.forecast
+    assert "quality_forecast" in result.forecast
+
+    # Verify analytics engine was called twice (velocity + quality)
+    assert mock_analytics_engine.analyze_trends.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_get_analytics_feature_flag_disabled(
+    orchestration_service, mock_analytics_engine
+):
+    """Test analytics when D5 feature flag is disabled."""
+    # Setup
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_advanced_analytics_enabled = False
+
+        # Execute
+        result = await orchestration_service._get_analytics("org-123")
+
+        # Assert
+        assert result is None
+        mock_analytics_engine.analyze_trends.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_analytics_invalid_org_id(
+    orchestration_service, mock_analytics_engine
+):
+    """Test analytics with invalid organization ID."""
+    # Setup
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_advanced_analytics_enabled = True
+
+        # Execute
+        result = await orchestration_service._get_analytics("invalid-uuid")
+
+        # Assert
+        assert result is None
+        mock_analytics_engine.analyze_trends.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_analytics_velocity_faster_than_baseline(
+    orchestration_service, mock_analytics_engine
+):
+    """Test analytics when velocity is faster than baseline."""
+    # Setup - average decision time is 6 days (faster than 10-day baseline)
+    org_uuid = uuid4()
+
+    velocity_trend = MagicMock(spec=TrendAnalysis)
+    velocity_trend.data_points = [
+        {"timestamp": 1705881600.0, "value": 6.0},
+        {"timestamp": 1705968000.0, "value": 5.5},
+    ]
+    velocity_trend.trend_direction = "decreasing"
+    velocity_trend.trend_strength = 0.8
+    velocity_trend.forecast_30days = []
+    velocity_trend.confidence_intervals = []
+
+    quality_trend = MagicMock(spec=TrendAnalysis)
+    quality_trend.data_points = [{"timestamp": 1705881600.0, "value": 7.0}]
+    quality_trend.trend_direction = "stable"
+    quality_trend.trend_strength = 0.5
+    quality_trend.forecast_30days = []
+
+    mock_analytics_engine.analyze_trends.side_effect = [velocity_trend, quality_trend]
+
+    # Execute
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_advanced_analytics_enabled = True
+        result = await orchestration_service._get_analytics(str(org_uuid))
+
+    # Assert
+    assert result is not None
+    assert "faster than baseline" in result.organization_decision_velocity
+
+
+@pytest.mark.asyncio
+async def test_get_analytics_velocity_slower_than_baseline(
+    orchestration_service, mock_analytics_engine
+):
+    """Test analytics when velocity is slower than baseline."""
+    # Setup - average decision time is 15 days (slower than 10-day baseline)
+    org_uuid = uuid4()
+
+    velocity_trend = MagicMock(spec=TrendAnalysis)
+    velocity_trend.data_points = [
+        {"timestamp": 1705881600.0, "value": 15.0},
+        {"timestamp": 1705968000.0, "value": 16.0},
+    ]
+    velocity_trend.trend_direction = "increasing"
+    velocity_trend.trend_strength = 0.7
+    velocity_trend.forecast_30days = []
+    velocity_trend.confidence_intervals = []
+
+    quality_trend = MagicMock(spec=TrendAnalysis)
+    quality_trend.data_points = [{"timestamp": 1705881600.0, "value": 7.0}]
+    quality_trend.trend_direction = "decreasing"
+    quality_trend.trend_strength = 0.6
+    quality_trend.forecast_30days = []
+
+    mock_analytics_engine.analyze_trends.side_effect = [velocity_trend, quality_trend]
+
+    # Execute
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_advanced_analytics_enabled = True
+        result = await orchestration_service._get_analytics(str(org_uuid))
+
+    # Assert
+    assert result is not None
+    assert "slower than baseline" in result.organization_decision_velocity
+    assert result.quality_trend == "declining"  # decreasing → declining
+
+
+# =============================================================================
+# TEST D6: CROSS-TEAM COORDINATION
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_conflicts_success(
+    orchestration_service, mock_coordination_manager
+):
+    """Test successful conflict retrieval (D6)."""
+    # Setup - mock detected conflicts
+    session_uuid = uuid4()
+    org_uuid = uuid4()
+    conflicting_session_1 = uuid4()
+    conflicting_session_2 = uuid4()
+
+    mock_conflict = MagicMock(spec=ConflictDetection)
+    mock_conflict.session_ids = [session_uuid, conflicting_session_1, conflicting_session_2]
+    mock_conflict.conflict_type = "resource"
+    mock_conflict.severity = "high"
+    mock_conflict.resolution_suggestions = [
+        "Stagger timelines to reduce overlap",
+        "Delegate decisions to reduce load",
+    ]
+
+    mock_coordination_manager.detect_conflicts.return_value = [mock_conflict]
+
+    # Execute
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_cross_team_coordination_enabled = True
+        result = await orchestration_service._get_conflicts(
+            str(session_uuid), str(org_uuid)
+        )
+
+    # Assert
+    assert isinstance(result, list)
+    assert len(result) == 2  # Two conflicting sessions
+
+    # Check first conflict
+    assert isinstance(result[0], CrossTeamConflict)
+    assert result[0].conflict_type == "resource"
+    assert result[0].severity == "high"
+    assert result[0].resolution_suggestion == "Stagger timelines to reduce overlap"
+    assert result[0].conflicting_session_id in [
+        str(conflicting_session_1),
+        str(conflicting_session_2),
+    ]
+
+    # Verify coordination manager was called
+    mock_coordination_manager.detect_conflicts.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_conflicts_feature_flag_disabled(
+    orchestration_service, mock_coordination_manager
+):
+    """Test conflicts when D6 feature flag is disabled."""
+    # Setup
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_cross_team_coordination_enabled = False
+
+        # Execute
+        result = await orchestration_service._get_conflicts("session-123", "org-456")
+
+        # Assert
+        assert result == []
+        mock_coordination_manager.detect_conflicts.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_conflicts_no_session_id(
+    orchestration_service, mock_coordination_manager
+):
+    """Test conflicts with no session ID."""
+    # Setup
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_cross_team_coordination_enabled = True
+
+        # Execute
+        result = await orchestration_service._get_conflicts(None, "org-123")
+
+        # Assert
+        assert result == []
+        mock_coordination_manager.detect_conflicts.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_conflicts_invalid_uuid(
+    orchestration_service, mock_coordination_manager
+):
+    """Test conflicts with invalid UUID format."""
+    # Setup
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_cross_team_coordination_enabled = True
+
+        # Execute
+        result = await orchestration_service._get_conflicts(
+            "invalid-uuid", "also-invalid"
+        )
+
+        # Assert
+        assert result == []
+        mock_coordination_manager.detect_conflicts.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_conflicts_no_conflicts_found(
+    orchestration_service, mock_coordination_manager
+):
+    """Test conflicts when no conflicts are detected."""
+    # Setup
+    session_uuid = uuid4()
+    org_uuid = uuid4()
+    mock_coordination_manager.detect_conflicts.return_value = []
+
+    # Execute
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_cross_team_coordination_enabled = True
+        result = await orchestration_service._get_conflicts(
+            str(session_uuid), str(org_uuid)
+        )
+
+    # Assert
+    assert result == []
+
+
+# =============================================================================
+# TEST D2: REAL-TIME COLLABORATION
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_collaboration_success(
+    orchestration_service, mock_collaboration_manager
+):
+    """Test successful collaboration data retrieval (D2)."""
+    # Setup - mock presence and actions
+    session_uuid = uuid4()
+    user1 = uuid4()
+    user2 = uuid4()
+    user3 = uuid4()
+
+    # Mock active presence
+    mock_collaboration_manager.get_active_presence.return_value = [user1, user2, user3]
+
+    # Mock recent actions
+    mock_action1 = MagicMock()
+    mock_action1.user_id = user1
+    mock_action1.action_type = "vote_cast"
+    mock_action1.timestamp = datetime(2025, 1, 21, 10, 0, 0)
+    mock_action1.metadata = {"option_id": "opt-123", "value": "strong"}
+
+    mock_action2 = MagicMock()
+    mock_action2.user_id = user2
+    mock_action2.action_type = "option_proposed"
+    mock_action2.timestamp = datetime(2025, 1, 21, 9, 55, 0)
+    mock_action2.metadata = {"proposal_id": "prop-456"}
+
+    mock_collaboration_manager.get_recent_actions.return_value = [
+        mock_action1,
+        mock_action2,
+    ]
+
+    # Execute
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_realtime_collaboration_enabled = True
+        result = await orchestration_service._get_collaboration(str(session_uuid))
+
+    # Assert
+    assert result is not None
+    assert isinstance(result, CollaborationData)
+    assert len(result.active_stakeholders) == 3
+    assert str(user1) in result.active_stakeholders
+    assert str(user2) in result.active_stakeholders
+    assert str(user3) in result.active_stakeholders
+
+    # Check recent actions
+    assert len(result.recent_actions) == 2
+    assert isinstance(result.recent_actions[0], RecentAction)
+    assert result.recent_actions[0].action_type == "vote_cast"
+    assert result.recent_actions[0].user_id == str(user1)
+    assert result.recent_actions[1].action_type == "option_proposed"
+
+    # Verify collaboration manager was called
+    mock_collaboration_manager.get_active_presence.assert_called_once_with(
+        session_uuid, time_window_seconds=300
+    )
+    mock_collaboration_manager.get_recent_actions.assert_called_once_with(
+        session_uuid, limit=10
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_collaboration_feature_flag_disabled(
+    orchestration_service, mock_collaboration_manager
+):
+    """Test collaboration when D2 feature flag is disabled."""
+    # Setup
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_realtime_collaboration_enabled = False
+
+        # Execute
+        result = await orchestration_service._get_collaboration("session-123")
+
+        # Assert
+        assert result is None
+        mock_collaboration_manager.get_active_presence.assert_not_called()
+        mock_collaboration_manager.get_recent_actions.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_collaboration_no_session_id(
+    orchestration_service, mock_collaboration_manager
+):
+    """Test collaboration with no session ID."""
+    # Setup
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_realtime_collaboration_enabled = True
+
+        # Execute
+        result = await orchestration_service._get_collaboration(None)
+
+        # Assert
+        assert result is None
+        mock_collaboration_manager.get_active_presence.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_collaboration_invalid_uuid(
+    orchestration_service, mock_collaboration_manager
+):
+    """Test collaboration with invalid UUID format."""
+    # Setup
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_realtime_collaboration_enabled = True
+
+        # Execute
+        result = await orchestration_service._get_collaboration("invalid-uuid")
+
+        # Assert
+        assert result is None
+        mock_collaboration_manager.get_active_presence.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_collaboration_no_active_users(
+    orchestration_service, mock_collaboration_manager
+):
+    """Test collaboration when no users are active."""
+    # Setup
+    session_uuid = uuid4()
+    mock_collaboration_manager.get_active_presence.return_value = []
+    mock_collaboration_manager.get_recent_actions.return_value = []
+
+    # Execute
+    with patch("src.services.orchestration.settings") as mock_settings:
+        mock_settings.feature_realtime_collaboration_enabled = True
+        result = await orchestration_service._get_collaboration(str(session_uuid))
+
+    # Assert
+    assert result is not None
+    assert result.active_stakeholders == []
+    assert result.recent_actions == []
