@@ -7,6 +7,7 @@ from src.services.fit_calculator import FitCalculator
 from src.services.validation_orchestrator import ValidationOrchestrator
 from src.services.concern_validator import ConcernValidator
 from src.services.decision_documenter import DecisionDocumenter
+from src.services.orchestration import OrchestrationService
 
 __all__ = [
     "SessionManager",
@@ -16,4 +17,5 @@ __all__ = [
     "ValidationOrchestrator",
     "ConcernValidator",
     "DecisionDocumenter",
+    "OrchestrationService",
 ]
