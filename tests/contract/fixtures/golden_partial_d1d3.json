@@ -1,0 +1,79 @@
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "organization_id": "org-123",
+  "timestamp": "2025-11-21T12:05:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-def456",
+  "alignment": {
+    "session_state": "proposing_options",
+    "stakeholder_count": 4,
+    "perspectives_collected": 4,
+    "options_proposed": 3,
+    "consensus_level": 0.62,
+    "shared_ground": {
+      "summary": "Team agrees on core objectives but differs on approach",
+      "common_goal_weights": {
+        "user_satisfaction": 0.85,
+        "time_to_market": 0.75
+      },
+      "aligned_priorities": [
+        "Deliver value quickly",
+        "Maintain code quality"
+      ]
+    },
+    "disagreements": {
+      "summary": "Technical approach and resource allocation under discussion",
+      "axes": [
+        {
+          "dimension": "technical_approach",
+          "stakeholders_involved": ["Engineer", "Architect"],
+          "severity_score": 0.5,
+          "description": "Debate between microservices vs monolith"
+        },
+        {
+          "dimension": "resource_allocation",
+          "stakeholders_involved": ["PM", "Designer"],
+          "severity_score": 0.4,
+          "description": "Budget concerns for additional design work"
+        }
+      ]
+    }
+  },
+  "decision_quality": {
+    "health_score": 0.58,
+    "risk_flags": [
+      "Multiple disagreement axes"
+    ],
+    "causally_validated": false,
+    "assumption_strength": 0.7,
+    "minority_concerns": []
+  },
+  "organizational_context": {
+    "similar_decisions": [],
+    "dependencies": [
+      {
+        "dependent_session_id": "session-infra999",
+        "dependency_type": "informs",
+        "team": "Infrastructure Team",
+        "description": "Related to infrastructure capacity planning",
+        "status": "resolved"
+      }
+    ],
+    "trend_insights": null,
+    "conflicts": []
+  },
+  "collaboration": null,
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": true,
+      "d2_realtime_collaboration": false,
+      "d3_decision_dependencies": true,
+      "d4_organizational_patterns": true,
+      "d5_advanced_analytics": false,
+      "d6_cross_team_coordination": false
+    },
+    "degraded": false,
+    "degradation_reason": null
+  }
+}

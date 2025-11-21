@@ -1,0 +1,95 @@
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "organization_id": "org-123",
+  "timestamp": "2025-11-21T12:00:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-abc123",
+  "alignment": {
+    "session_state": "deliberating",
+    "stakeholder_count": 3,
+    "perspectives_collected": 3,
+    "options_proposed": 2,
+    "consensus_level": 0.75,
+    "shared_ground": {
+      "summary": "All stakeholders prioritize user experience and performance",
+      "common_goal_weights": {
+        "user_satisfaction": 0.9,
+        "performance": 0.85,
+        "maintainability": 0.7
+      },
+      "aligned_priorities": [
+        "Fast load times",
+        "Mobile support",
+        "Intuitive interface"
+      ]
+    },
+    "disagreements": {
+      "summary": "PM and Engineer disagree on implementation timeline",
+      "axes": [
+        {
+          "dimension": "feasibility",
+          "stakeholders_involved": ["PM", "Engineer"],
+          "severity_score": 0.6,
+          "description": "PM wants MVP in 2 weeks, Engineer needs 4 weeks for quality implementation"
+        }
+      ]
+    }
+  },
+  "decision_quality": {
+    "health_score": 0.72,
+    "risk_flags": [],
+    "causally_validated": false,
+    "assumption_strength": 0.7,
+    "minority_concerns": []
+  },
+  "organizational_context": {
+    "similar_decisions": [
+      {
+        "session_id": "session-old123",
+        "outcome": "success",
+        "similarity": 0.87,
+        "key_lessons": [
+          "Early prototyping saved 2 weeks",
+          "Designer-developer pairing improved alignment",
+          "Clear acceptance criteria prevented rework"
+        ],
+        "timestamp": "2025-10-15T14:00:00Z"
+      },
+      {
+        "session_id": "session-old456",
+        "outcome": "success",
+        "similarity": 0.72,
+        "key_lessons": [
+          "User testing revealed unexpected pain points",
+          "Iterative approach reduced risk"
+        ],
+        "timestamp": "2025-09-20T10:30:00Z"
+      }
+    ],
+    "dependencies": [
+      {
+        "dependent_session_id": "session-api789",
+        "dependency_type": "blocks",
+        "team": "Platform Team",
+        "description": "Waiting for API design decision before proceeding",
+        "status": "pending"
+      }
+    ],
+    "trend_insights": null,
+    "conflicts": []
+  },
+  "collaboration": null,
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": true,
+      "d2_realtime_collaboration": false,
+      "d3_decision_dependencies": true,
+      "d4_organizational_patterns": true,
+      "d5_advanced_analytics": false,
+      "d6_cross_team_coordination": false
+    },
+    "degraded": false,
+    "degradation_reason": null
+  }
+}

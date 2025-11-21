@@ -1,0 +1,53 @@
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "organization_id": "org-123",
+  "timestamp": "2025-11-21T12:10:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-ghi789",
+  "alignment": {
+    "session_state": "collecting_perspectives",
+    "stakeholder_count": 5,
+    "perspectives_collected": 3,
+    "options_proposed": 0,
+    "consensus_level": 0.5,
+    "shared_ground": {
+      "summary": "Shared ground analysis pending",
+      "common_goal_weights": {},
+      "aligned_priorities": []
+    },
+    "disagreements": {
+      "summary": "Disagreement analysis pending",
+      "axes": []
+    }
+  },
+  "decision_quality": {
+    "health_score": 0.45,
+    "risk_flags": [
+      "Low consensus",
+      "Limited stakeholder input"
+    ],
+    "causally_validated": false,
+    "assumption_strength": 0.7,
+    "minority_concerns": []
+  },
+  "organizational_context": {
+    "similar_decisions": [],
+    "dependencies": [],
+    "trend_insights": null,
+    "conflicts": []
+  },
+  "collaboration": null,
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": true,
+      "d2_realtime_collaboration": false,
+      "d3_decision_dependencies": true,
+      "d4_organizational_patterns": false,
+      "d5_advanced_analytics": false,
+      "d6_cross_team_coordination": false
+    },
+    "degraded": true,
+    "degradation_reason": "Some capabilities unavailable: d4_patterns"
+  }
+}

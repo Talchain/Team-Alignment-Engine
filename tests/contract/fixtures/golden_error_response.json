@@ -1,0 +1,29 @@
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "organization_id": "org-123",
+  "timestamp": "2025-11-21T12:15:00Z",
+  "version": "2.0.0",
+  "request_id": "plot-run-jkl012",
+  "alignment": null,
+  "decision_quality": null,
+  "organizational_context": {
+    "similar_decisions": [],
+    "dependencies": [],
+    "trend_insights": null,
+    "conflicts": []
+  },
+  "collaboration": null,
+  "availability": {
+    "tae_available": true,
+    "capabilities": {
+      "d1_portfolio_analytics": false,
+      "d2_realtime_collaboration": false,
+      "d3_decision_dependencies": false,
+      "d4_organizational_patterns": false,
+      "d5_advanced_analytics": false,
+      "d6_cross_team_coordination": false
+    },
+    "degraded": true,
+    "degradation_reason": "Some capabilities unavailable: core_alignment, d3_dependencies, d4_patterns"
+  }
+}
