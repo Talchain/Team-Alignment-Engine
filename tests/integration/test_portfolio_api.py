@@ -212,7 +212,7 @@ class TestPortfolioAnalyticsEndpoint:
 
             assert response.status_code == 404
             data = response.json()
-            assert "detail" in data
+            assert "message" in data  # Error handler middleware transforms to 'message'
 
     @pytest.mark.asyncio
     async def test_get_portfolio_analytics_invalid_organization_id(

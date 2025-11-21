@@ -43,7 +43,7 @@ async def get_portfolio_analytics(
     decision_types: Optional[List[str]] = Query(
         None, description="Filter by decision types"
     ),
-    status: Optional[List[SessionStatus]] = Query(
+    session_status: Optional[List[SessionStatus]] = Query(
         None, description="Filter by session status"
     ),
     min_risk_score: Optional[float] = Query(
@@ -109,10 +109,11 @@ async def get_portfolio_analytics(
 
         # Build filters
         filters = PortfolioFilters(
+            organization_id=organization_id,
             date_range=DateRange(start=start_date, end=end_date),
             teams=teams,
             decision_types=decision_types,
-            status=status,
+            status=session_status,
             min_risk_score=min_risk_score,
         )
 
@@ -206,6 +207,7 @@ async def get_portfolio_health_score(
             start_date = end_date - timedelta(days=30)
 
         filters = PortfolioFilters(
+            organization_id=organization_id,
             date_range=DateRange(start=start_date, end=end_date)
         )
 

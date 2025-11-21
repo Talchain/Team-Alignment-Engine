@@ -21,6 +21,22 @@ def user_id():
 
 
 @pytest.fixture
+def mock_redis():
+    """Mock Redis client."""
+    redis_mock = AsyncMock()
+    redis_mock.hset = AsyncMock()
+    redis_mock.hdel = AsyncMock()
+    redis_mock.hgetall = AsyncMock(return_value={})
+    redis_mock.hget = AsyncMock(return_value=None)
+    redis_mock.expire = AsyncMock()
+    redis_mock.publish = AsyncMock()
+    redis_mock.lrange = AsyncMock(return_value=[])
+    redis_mock.lpush = AsyncMock()
+    redis_mock.expire = AsyncMock()
+    return redis_mock
+
+
+@pytest.fixture
 def mock_collaboration_manager():
     """Mock CollaborationManager."""
     from src.models.portfolio import UserPresence, SessionState
@@ -86,13 +102,14 @@ class TestSessionStateEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_session_state_success(
-        self, client: AsyncClient, session_id, mock_collaboration_manager
+        self, client: AsyncClient, session_id, mock_collaboration_manager, mock_redis
     ):
         """Test successful session state retrieval."""
-        with patch(
-            "src.api.routes.collaboration.CollaborationManager",
-            return_value=mock_collaboration_manager,
-        ):
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
+                "src.api.routes.collaboration.CollaborationManager",
+                return_value=mock_collaboration_manager,
+            ):
             response = await client.get(f"/api/v1/collaboration/{session_id}/state")
 
             assert response.status_code == 200
@@ -105,13 +122,14 @@ class TestSessionStateEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_session_state_with_active_users(
-        self, client: AsyncClient, session_id, mock_collaboration_manager
+        self, client: AsyncClient, session_id, mock_collaboration_manager, mock_redis
     ):
         """Test session state includes active users."""
-        with patch(
-            "src.api.routes.collaboration.CollaborationManager",
-            return_value=mock_collaboration_manager,
-        ):
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
+                "src.api.routes.collaboration.CollaborationManager",
+                return_value=mock_collaboration_manager,
+            ):
             response = await client.get(f"/api/v1/collaboration/{session_id}/state")
 
             assert response.status_code == 200
@@ -125,7 +143,8 @@ class TestSessionStateEndpoint:
         self, client: AsyncClient, session_id, mock_collaboration_manager
     ):
         """Test session state includes recent actions."""
-        with patch(
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
             "src.api.routes.collaboration.CollaborationManager",
             return_value=mock_collaboration_manager,
         ):
@@ -145,7 +164,8 @@ class TestPresenceEndpoint:
         self, client: AsyncClient, session_id, user_id, mock_collaboration_manager
     ):
         """Test successful presence update."""
-        with patch(
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
             "src.api.routes.collaboration.CollaborationManager",
             return_value=mock_collaboration_manager,
         ):
@@ -166,7 +186,8 @@ class TestPresenceEndpoint:
         self, client: AsyncClient, session_id, user_id, mock_collaboration_manager
     ):
         """Test presence update without metadata."""
-        with patch(
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
             "src.api.routes.collaboration.CollaborationManager",
             return_value=mock_collaboration_manager,
         ):
@@ -186,7 +207,8 @@ class TestBroadcastEndpoint:
         self, client: AsyncClient, session_id, user_id, mock_collaboration_manager
     ):
         """Test successful action broadcast."""
-        with patch(
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
             "src.api.routes.collaboration.CollaborationManager",
             return_value=mock_collaboration_manager,
         ):
@@ -214,7 +236,8 @@ class TestBroadcastEndpoint:
         self, client: AsyncClient, session_id, user_id, mock_collaboration_manager
     ):
         """Test broadcasting action without target_id."""
-        with patch(
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
             "src.api.routes.collaboration.CollaborationManager",
             return_value=mock_collaboration_manager,
         ):
@@ -245,7 +268,8 @@ class TestBroadcastEndpoint:
             "concern_raised",
         ]
 
-        with patch(
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
             "src.api.routes.collaboration.CollaborationManager",
             return_value=mock_collaboration_manager,
         ):
@@ -275,7 +299,8 @@ class TestActiveUsersEndpoint:
         self, client: AsyncClient, session_id, mock_collaboration_manager
     ):
         """Test successful active users retrieval."""
-        with patch(
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
             "src.api.routes.collaboration.CollaborationManager",
             return_value=mock_collaboration_manager,
         ):
@@ -296,7 +321,8 @@ class TestActiveUsersEndpoint:
         self, client: AsyncClient, session_id, mock_collaboration_manager
     ):
         """Test active users includes user metadata."""
-        with patch(
+        with patch("src.api.routes.collaboration.get_cache", return_value=mock_redis), \
+             patch(
             "src.api.routes.collaboration.CollaborationManager",
             return_value=mock_collaboration_manager,
         ):
