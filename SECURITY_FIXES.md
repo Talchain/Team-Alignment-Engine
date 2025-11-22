@@ -82,7 +82,7 @@ Comprehensive security audit and quality improvements have been implemented acro
 **Severity**: CRITICAL (P0)
 **Resolution**:
 - ✅ Created unified secrets management system
-- ✅ Supports environment variables (dev) and AWS Secrets Manager (prod)
+- ✅ Supports environment variables (dev) and Render environment variables (prod)
 - ✅ LRU cache for secret lookups
 - ✅ JSON secret support for structured secrets
 - ✅ Extensible to HashiCorp Vault, Azure Key Vault
@@ -329,7 +329,7 @@ async def call_external_service():
 - [x] Health checks validate dependencies
 - [x] Database connection pooling
 - [x] CORS configuration validated
-- [x] Secrets management (AWS Secrets Manager ready)
+- [x] Secrets management (Render environment variables ready)
 - [x] Database indexes for performance
 - [x] Retry logic for external services
 - [x] Comprehensive security tests
@@ -357,7 +357,7 @@ async def call_external_service():
    ```bash
    export USE_AWS_SECRETS_MANAGER=true
    export AWS_REGION=us-east-1
-   # Migrate secrets from .env to AWS Secrets Manager
+   # Migrate secrets from .env to Render environment variables
    ```
 
 4. **Run Security Tests**
@@ -412,7 +412,7 @@ ISL_API_KEY=<from-aws-secrets>
 
 ### Security Posture: CRITICAL → PRODUCTION READY
 - **Before**: No authentication, in-memory rate limiting, plain-text secrets
-- **After**: Enterprise-grade JWT auth, Redis rate limiting, AWS Secrets Manager
+- **After**: Enterprise-grade JWT auth, Redis rate limiting, Render environment variables
 
 ### Performance: GOOD → EXCELLENT
 - **Before**: Missing indexes, no caching strategy

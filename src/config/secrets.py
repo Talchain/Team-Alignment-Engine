@@ -1,9 +1,14 @@
-"""Secrets management with support for environment variables and AWS Secrets Manager."""
+"""Secrets management for Render deployment with environment variables.
+
+Render provides built-in secrets management through encrypted environment
+variables. No external secrets manager (AWS, Vault, etc.) is needed.
+
+Documentation: https://render.com/docs/configure-environment-variables
+"""
 
 import os
-import json
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional
 from functools import lru_cache
 
 logger = logging.getLogger(__name__)
@@ -11,48 +16,28 @@ logger = logging.getLogger(__name__)
 
 class SecretsManager:
     """
-    Unified secrets management supporting:
-    - Environment variables (development)
-    - AWS Secrets Manager (production)
-    - Future: HashiCorp Vault, Azure Key Vault
+    Secrets manager for Render deployment.
+
+    Render automatically encrypts environment variables at rest and in transit.
+    Secrets are managed via:
+    1. Render Dashboard > Environment > Environment Variables
+    2. Secret Files (for .env, certificates, etc.)
+    3. Pull Secrets (for private Docker registries)
+
+    All secrets are encrypted and only decrypted in your running service.
     """
 
-    def __init__(self, use_aws: bool = False, region: str = "us-east-1"):
-        """
-        Initialize secrets manager.
-
-        Args:
-            use_aws: Use AWS Secrets Manager instead of environment variables
-            region: AWS region for Secrets Manager
-        """
-        self.use_aws = use_aws
-        self.region = region
-        self._aws_client = None
-
-        if use_aws:
-            try:
-                import boto3
-                from botocore.exceptions import ClientError
-                self._aws_client = boto3.client(
-                    'secretsmanager',
-                    region_name=region
-                )
-                self._client_error = ClientError
-                logger.info("AWS Secrets Manager initialized", extra={"region": region})
-            except ImportError:
-                logger.error("boto3 not installed. Install with: pip install boto3")
-                raise RuntimeError("boto3 required for AWS Secrets Manager")
-            except Exception as e:
-                logger.error("Failed to initialize AWS Secrets Manager", exc_info=True)
-                raise
+    def __init__(self):
+        """Initialize secrets manager for Render."""
+        logger.info("Secrets manager initialized (Render environment variables)")
 
     @lru_cache(maxsize=128)
     def get_secret(self, secret_name: str, default: Optional[str] = None) -> str:
         """
-        Get secret value from configured backend.
+        Get secret value from environment variable.
 
         Args:
-            secret_name: Name of the secret (env var name or AWS secret name)
+            secret_name: Name of the environment variable
             default: Default value if secret not found
 
         Returns:
@@ -60,104 +45,91 @@ class SecretsManager:
 
         Raises:
             ValueError: If secret not found and no default provided
-        """
-        if self.use_aws:
-            return self._get_from_aws(secret_name, default)
-        else:
-            return self._get_from_env(secret_name, default)
 
-    def _get_from_env(self, secret_name: str, default: Optional[str] = None) -> str:
-        """Get secret from environment variable."""
+        Example:
+            >>> secrets = SecretsManager()
+            >>> jwt_secret = secrets.get_secret("JWT_SECRET")
+            >>> db_url = secrets.get_secret("DATABASE_URL")
+        """
         value = os.getenv(secret_name, default)
         if value is None:
-            raise ValueError(f"Secret not found: {secret_name}")
+            logger.error(
+                f"Secret not found: {secret_name}",
+                extra={"secret_name": secret_name}
+            )
+            raise ValueError(
+                f"Required secret '{secret_name}' not found in environment. "
+                f"Configure it in Render Dashboard > Environment."
+            )
         return value
 
-    def _get_from_aws(self, secret_name: str, default: Optional[str] = None) -> str:
-        """Get secret from AWS Secrets Manager."""
-        try:
-            response = self._aws_client.get_secret_value(SecretId=secret_name)
-
-            # Secrets can be string or binary
-            if 'SecretString' in response:
-                secret = response['SecretString']
-                # Try to parse as JSON (AWS stores structured secrets as JSON)
-                try:
-                    secret_dict = json.loads(secret)
-                    # If JSON, return the whole dict as string
-                    # In real usage, you'd specify which key to extract
-                    return secret
-                except json.JSONDecodeError:
-                    return secret
-            else:
-                # Binary secret
-                return response['SecretBinary'].decode('utf-8')
-
-        except self._client_error as e:
-            error_code = e.response['Error']['Code']
-            if error_code == 'ResourceNotFoundException':
-                logger.warning(f"Secret not found in AWS: {secret_name}")
-                if default is not None:
-                    return default
-                raise ValueError(f"Secret not found: {secret_name}")
-            else:
-                logger.error(
-                    f"AWS Secrets Manager error: {error_code}",
-                    extra={"secret_name": secret_name},
-                    exc_info=True
-                )
-                raise
-
-    def get_secret_json(self, secret_name: str) -> Dict[str, Any]:
+    def get_secret_or_none(self, secret_name: str) -> Optional[str]:
         """
-        Get secret as JSON object (useful for structured secrets).
+        Get secret value, returning None if not found.
 
         Args:
-            secret_name: Name of the secret
+            secret_name: Name of the environment variable
 
         Returns:
-            Parsed JSON dict
+            Secret value or None
+
+        Example:
+            >>> secrets = SecretsManager()
+            >>> optional_key = secrets.get_secret_or_none("OPTIONAL_API_KEY")
+        """
+        return os.getenv(secret_name)
+
+    def require_secrets(self, *secret_names: str) -> None:
+        """
+        Validate that required secrets are present on startup.
+
+        Args:
+            *secret_names: Names of required environment variables
 
         Raises:
-            ValueError: If secret not found or not valid JSON
+            ValueError: If any required secret is missing
+
+        Example:
+            >>> secrets = SecretsManager()
+            >>> secrets.require_secrets(
+            ...     "JWT_SECRET",
+            ...     "DATABASE_URL",
+            ...     "REDIS_URL"
+            ... )
         """
-        secret_string = self.get_secret(secret_name)
-        try:
-            return json.loads(secret_string)
-        except json.JSONDecodeError as e:
-            logger.error(
-                "Failed to parse secret as JSON",
-                extra={"secret_name": secret_name, "error": str(e)}
+        missing = []
+        for secret_name in secret_names:
+            if not os.getenv(secret_name):
+                missing.append(secret_name)
+
+        if missing:
+            error_msg = (
+                f"Missing required secrets: {', '.join(missing)}\n"
+                f"Configure these in Render Dashboard > Environment > Environment Variables"
             )
-            raise ValueError(f"Secret {secret_name} is not valid JSON")
+            logger.error(error_msg, extra={"missing_secrets": missing})
+            raise ValueError(error_msg)
+
+        logger.info(
+            f"All required secrets validated: {len(secret_names)} secrets found",
+            extra={"secret_count": len(secret_names)}
+        )
 
 
-# Global instance - initialized based on environment
+# Global singleton instance
+_secrets_manager: Optional[SecretsManager] = None
+
+
 def get_secrets_manager() -> SecretsManager:
     """
-    Get secrets manager instance.
-
-    In production, set environment variable:
-        USE_AWS_SECRETS_MANAGER=true
+    Get the global secrets manager instance.
 
     Returns:
         SecretsManager instance
     """
-    use_aws = os.getenv("USE_AWS_SECRETS_MANAGER", "false").lower() == "true"
-    aws_region = os.getenv("AWS_REGION", "us-east-1")
-
-    return SecretsManager(use_aws=use_aws, region=aws_region)
-
-
-# Singleton instance
-_secrets_manager: Optional[SecretsManager] = None
-
-
-def init_secrets_manager() -> SecretsManager:
-    """Initialize global secrets manager instance."""
     global _secrets_manager
     if _secrets_manager is None:
-        _secrets_manager = get_secrets_manager()
+        _secrets_manager = SecretsManager()
     return _secrets_manager
 
 
@@ -171,8 +143,40 @@ def get_secret(secret_name: str, default: Optional[str] = None) -> str:
 
     Returns:
         Secret value
+
+    Example:
+        >>> from src.config.secrets import get_secret
+        >>> jwt_secret = get_secret("JWT_SECRET")
     """
-    global _secrets_manager
-    if _secrets_manager is None:
-        _secrets_manager = init_secrets_manager()
-    return _secrets_manager.get_secret(secret_name, default)
+    return get_secrets_manager().get_secret(secret_name, default)
+
+
+def validate_production_secrets() -> None:
+    """
+    Validate all required secrets for production deployment.
+
+    Call this on application startup to fail fast if secrets are missing.
+
+    Raises:
+        ValueError: If any required secret is missing
+    """
+    secrets = get_secrets_manager()
+
+    required_secrets = [
+        # Core application
+        "JWT_SECRET",
+        "DATABASE_URL",
+        "REDIS_URL",
+
+        # External services
+        "CEE_BASE_URL",
+        "CEE_API_KEY",
+        "ISL_BASE_URL",
+        "ISL_API_KEY",
+
+        # PLoT integration
+        "PLOT_INTERNAL_API_KEY",
+    ]
+
+    secrets.require_secrets(*required_secrets)
+    logger.info("Production secrets validation complete ✓")

@@ -94,6 +94,12 @@ async def startup_event():
     logger.info(f"Environment: {settings.environment}")
 
     try:
+        # Validate production secrets on startup (fail fast if missing)
+        if settings.environment == "production":
+            from src.config.secrets import validate_production_secrets
+            validate_production_secrets()
+            logger.info("Production secrets validated")
+
         # Initialize database
         await init_db()
         logger.info("Database initialized")
