@@ -1,6 +1,7 @@
 """Advanced analytics engine service for Phase D5."""
 
 import logging
+import json
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 from datetime import datetime, timedelta
@@ -17,7 +18,8 @@ from src.models.portfolio import (
 )
 from src.models.session import AlignmentSession
 from src.models.enums import SessionStatus, DecisionType
-from src.utils.profiling import profile_async
+from src.utils.profiling import profile_async, profile_block
+from src.storage.cache import get_cache
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +27,17 @@ logger = logging.getLogger(__name__)
 class AdvancedAnalyticsEngine:
     """Advanced analytics for trend analysis and forecasting."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, cache=None):
         """
         Initialize analytics engine.
 
         Args:
             db: Database session
+            cache: Optional Redis cache instance (uses global cache if None)
         """
         self.db = db
+        self.cache = cache or get_cache()
+        self._cache_ttl = 3600  # 1 hour cache TTL
 
     @profile_async("d5_analyze_trends", capability="d5")
     async def analyze_trends(
@@ -42,7 +47,7 @@ class AdvancedAnalyticsEngine:
         lookback_days: int = 90,
     ) -> TrendAnalysis:
         """
-        Analyze trends for a specific metric.
+        Analyze trends for a specific metric with Redis caching.
 
         Args:
             organization_id: Organization ID
@@ -50,9 +55,53 @@ class AdvancedAnalyticsEngine:
             lookback_days: Days of history to analyze
 
         Returns:
-            Trend analysis with forecasts
+            Trend analysis with forecasts (cached for 1 hour)
         """
+        # Build cache key
+        cache_key = f"tae:analytics:{organization_id}:trends:{metric_name}:{lookback_days}"
+
         try:
+            # Check cache first
+            cache_hit = False
+            async with profile_block(
+                "d5_cache_lookup",
+                capability="d5",
+                cache_hit=None,
+                metric_name=metric_name
+            ):
+                cached_data = await self.cache.get(cache_key)
+
+            if cached_data:
+                cache_hit = True
+                logger.debug(
+                    "Trend analysis cache hit",
+                    extra={
+                        "organization_id": str(organization_id),
+                        "metric_name": metric_name,
+                    },
+                )
+                # Deserialize and return cached result
+                trend_dict = json.loads(cached_data)
+                # Convert datetime strings back to objects
+                if "generated_at" in trend_dict:
+                    trend_dict["generated_at"] = datetime.fromisoformat(
+                        trend_dict["generated_at"]
+                    )
+                if "changepoints" in trend_dict:
+                    trend_dict["changepoints"] = [
+                        datetime.fromisoformat(cp) for cp in trend_dict["changepoints"]
+                    ]
+                return TrendAnalysis(**trend_dict)
+
+            # Cache miss - perform expensive calculation
+            logger.debug(
+                "Trend analysis cache miss - computing",
+                extra={
+                    "organization_id": str(organization_id),
+                    "metric_name": metric_name,
+                },
+            )
+
             # Get completed sessions
             cutoff_date = datetime.utcnow() - timedelta(days=lookback_days)
 
@@ -90,7 +139,7 @@ class AdvancedAnalyticsEngine:
                 data_points, forecast_values
             )
 
-            return TrendAnalysis(
+            result = TrendAnalysis(
                 organization_id=organization_id,
                 metric_name=metric_name,
                 time_period_days=lookback_days,
@@ -103,6 +152,38 @@ class AdvancedAnalyticsEngine:
                 confidence_intervals=confidence_intervals,
                 generated_at=datetime.utcnow(),
             )
+
+            # Cache the result for 1 hour
+            async with profile_block(
+                "d5_cache_store",
+                capability="d5",
+                cache_hit=False,
+                metric_name=metric_name
+            ):
+                # Serialize to JSON (convert datetime objects to strings)
+                result_dict = result.model_dump(mode="json")
+                result_dict["generated_at"] = result.generated_at.isoformat()
+                result_dict["changepoints"] = [
+                    cp.isoformat() for cp in result.changepoints
+                ]
+
+                await self.cache.setex(
+                    cache_key,
+                    self._cache_ttl,
+                    json.dumps(result_dict),
+                )
+
+            logger.info(
+                "Trend analysis computed and cached",
+                extra={
+                    "organization_id": str(organization_id),
+                    "metric_name": metric_name,
+                    "data_points": len(data_points),
+                    "cache_ttl_seconds": self._cache_ttl,
+                },
+            )
+
+            return result
 
         except Exception as e:
             logger.error(
@@ -495,3 +576,61 @@ class AdvancedAnalyticsEngine:
                 improvements.append(f"{metric_display} below industry average")
 
         return strengths, improvements
+
+    async def invalidate_analytics_cache(
+        self, organization_id: UUID, metric_name: Optional[str] = None
+    ) -> int:
+        """
+        Invalidate cached analytics for an organization.
+
+        Should be called when new sessions complete to ensure fresh data.
+
+        Args:
+            organization_id: Organization ID
+            metric_name: Optional specific metric to invalidate (all if None)
+
+        Returns:
+            Number of cache keys invalidated
+        """
+        try:
+            if metric_name:
+                # Invalidate specific metric
+                pattern = f"tae:analytics:{organization_id}:trends:{metric_name}:*"
+            else:
+                # Invalidate all analytics for org
+                pattern = f"tae:analytics:{organization_id}:*"
+
+            # Scan and delete matching keys
+            deleted_count = 0
+            cursor = 0
+            while True:
+                cursor, keys = await self.cache.scan(
+                    cursor, match=pattern, count=100
+                )
+                if keys:
+                    await self.cache.delete(*keys)
+                    deleted_count += len(keys)
+
+                if cursor == 0:
+                    break
+
+            logger.info(
+                "Analytics cache invalidated",
+                extra={
+                    "organization_id": str(organization_id),
+                    "metric_name": metric_name,
+                    "keys_deleted": deleted_count,
+                },
+            )
+
+            return deleted_count
+
+        except Exception as e:
+            logger.warning(
+                "Failed to invalidate analytics cache",
+                extra={
+                    "organization_id": str(organization_id),
+                    "error": str(e),
+                },
+            )
+            return 0
