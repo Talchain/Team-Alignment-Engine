@@ -1,0 +1,251 @@
+================================================================================
+TEAM-ALIGNMENT-ENGINE: PERFORMANCE ANALYSIS SUMMARY
+================================================================================
+
+CRITICAL FINDINGS (Must Fix - Impact User Experience)
+================================================================================
+
+1. SEQUENTIAL EXTERNAL API CALLS
+   Location: src/services/validation_orchestrator.py (lines 91-121)
+   Impact: 5 options × 60s timeout = 300s total, causes request timeout
+   Fix: Use asyncio.gather() for parallel ISL calls
+   Effort: LOW - 10 lines of code
+
+2. UNOPTIMIZED WEBSOCKET BROADCAST
+   Location: src/api/routes/collaboration.py (lines 89-120)
+   Impact: N connections = N Redis subscriptions, no message batching
+   Fix: Implement message pooling and subscription caching
+   Effort: MEDIUM - Architecture change needed
+
+3. N+1 PROFILE LOOKUPS
+   Location: src/services/profile_extractor.py (lines 130-141)
+   Impact: Linear scans (O(n)) for every profile access, quadratic behavior
+   Fix: Add indexed dictionaries {session_id: {user_id: profile}}
+   Effort: LOW - 20 lines of code
+
+4. SEQUENTIAL CEE CALLS IN DECISION RECORDING
+   Location: src/api/routes/decisions.py (lines 54-146)
+   Impact: Multiple lookups happen sequentially when could be parallel
+   Fix: Use asyncio.gather() for all lookups
+   Effort: LOW - 5 lines of code
+
+5. UNBOUNDED IN-MEMORY STORAGE
+   Location: src/services/*.py (profile_extractor, fit_calculator, session_manager)
+   Impact: Memory grows indefinitely (100,000 sessions = GB+ RAM)
+   Fix: Actually use database instead of in-memory dicts
+   Effort: HIGH - Requires database integration
+
+
+HIGH-SEVERITY FINDINGS (Impacts Scalability/Performance)
+================================================================================
+
+1. MISSING DATABASE INDEXES
+   Location: src/storage/db_models.py
+   Impact: Full table scans on queries (raised_by, proposed_by, etc.)
+   Fix: Add index=True to all FK columns and composite indexes
+   Effort: LOW - 5 lines of SQL
+
+2. NO QUERY-LEVEL CACHING
+   Location: src/storage/cache.py
+   Impact: CEE responses (expensive LLM calls) not cached
+   Fix: Implement @cached decorator for service methods
+   Effort: MEDIUM - Cache layer integration
+
+3. DATABASE CONNECTION POOL TOO SMALL
+   Location: src/storage/database.py (pool_size=10)
+   Impact: Connection exhaustion under load, potential deadlocks
+   Fix: Increase pool_size to 20-30, fix expire_on_commit setting
+   Effort: LOW - 2 lines of code
+
+4. BLOCKING DISAGREEMENT ANALYSIS
+   Location: src/services/disagreement_analyzer.py (lines 48-58, 96-105)
+   Impact: Makes 2 sequential CEE calls that could run in parallel
+   Fix: Use asyncio.gather() for parallel CEE calls
+   Effort: LOW - 5 lines of code
+
+5. NO REQUEST DEDUPLICATION FOR CEE
+   Location: src/clients/cee_client.py (line 30-96)
+   Impact: Identical profile extractions called multiple times (wasted API calls)
+   Fix: Cache CEE responses by seed parameter
+   Effort: MEDIUM - Cache integration
+
+6. ISL TIMEOUT HANDLING
+   Location: src/clients/isl_client.py (lines 31-137)
+   Impact: 60-second timeout blocks entire request, no retry logic
+   Fix: Add retry with exponential backoff, reduce timeout to 30s
+   Effort: LOW - Use tenacity library
+
+7. EXCESSIVE .dict() CALLS
+   Location: Throughout codebase (disagreement_analyzer, option_synthesizer, etc.)
+   Impact: Expensive Pydantic serialization in hot paths
+   Fix: Use .model_dump(exclude={...}) instead
+   Effort: LOW - 10-15 occurrences to fix
+
+8. REDIS CONNECTION MANAGEMENT
+   Location: src/storage/cache.py (lines 16-30)
+   Impact: max_connections=10 too low, no retry logic
+   Fix: Increase to 20-50, add connection retry with exponential backoff
+   Effort: MEDIUM - Connection pool configuration
+
+
+MEDIUM-SEVERITY FINDINGS (Performance Degradation)
+================================================================================
+
+1. INEFFICIENT AGGREGATION IN PORTFOLIO ANALYZER
+   Location: src/services/portfolio_analyzer.py (lines 152-170)
+   Impact: In-memory filtering and aggregation instead of database queries
+   Fix: Move to SQL aggregates using func.avg(), func.count()
+   Effort: MEDIUM - SQL knowledge needed
+
+2. INEFFICIENT LIST COMPREHENSIONS IN DISAGREEMENT ANALYZER
+   Location: src/services/disagreement_analyzer.py (multiple lines)
+   Impact: Creates temporary lists repeated, memory allocation overhead
+   Fix: Use NumPy directly or generators
+   Effort: LOW - 5 lines of code
+
+3. IN-MEMORY RATE LIMITER NOT SCALABLE
+   Location: src/api/middleware/rate_limiter.py (lines 13-70)
+   Impact: Per-process limiting, doesn't work with load balancer
+   Fix: Use Redis for distributed rate limiting
+   Effort: MEDIUM - Redis integration
+
+4. SLOW PORTFOLIO ANALYTICS ENDPOINT
+   Location: src/api/routes/portfolio.py (lines 31-138)
+   Impact: Multiple sequential operations, documented target <5s likely exceeded
+   Fix: Cache portfolio analysis, update via background job
+   Effort: HIGH - Requires async task queue
+
+5. OPTION RESPONSE SERIALIZATION OVERHEAD
+   Location: src/api/routes/options.py (lines 111-173)
+   Impact: Three nested .dict() calls per request, linear scans for lookups
+   Fix: Index lookups by option_id, use exclude parameter
+   Effort: LOW - 10 lines of code
+
+6. JSON SERIALIZATION IN CACHE
+   Location: src/storage/cache.py (lines 58-64, 80-81)
+   Impact: Redundant JSON serialization/deserialization
+   Fix: Use MessagePack for faster binary serialization
+   Effort: LOW - 3 lines of code change
+
+7. NO CACHE INVALIDATION STRATEGY
+   Location: All route files calling service updates
+   Impact: Stale data could be returned after mutations
+   Fix: Add cache_delete() calls on update operations
+   Effort: MEDIUM - Add 2-3 lines per update operation
+
+8. SESSION SCOPE ISSUES IN DATABASE
+   Location: src/storage/database.py (lines 40-60)
+   Impact: expire_on_commit=False causes stale object references
+   Fix: Use expire_on_commit=True, add isolation level
+   Effort: LOW - 1 line of code change
+
+
+LOW-SEVERITY FINDINGS (Minor Optimizations)
+================================================================================
+
+1. METRICS MIDDLEWARE TIMING
+   - Use time.perf_counter() instead of time.time()
+   - Add sampling for high-volume endpoints
+   - Effort: LOW
+
+2. CORS MIDDLEWARE RECALCULATION
+   - Cache parsed origins instead of recalculating per request
+   - Use explicit allow_methods/allow_headers instead of wildcards
+   - Effort: LOW
+
+3. TTL TOO LONG FOR RAPID CHANGES
+   - Use context-aware TTLs (5-10s for session state)
+   - Effort: LOW
+
+4. PYDANTIC MODEL CONFIG NOT OPTIMIZED
+   - Add validate_assignment=True, extra='forbid'
+   - Effort: LOW
+
+5. MEMORY GROWTH IN WEBSOCKET ACTION HISTORY
+   - Add size limit with ZREMRANGEBYRANK
+   - Effort: LOW
+
+6. NO RATE LIMITING FOR EXTERNAL APIS
+   - Add aiometer for rate limiting CEE/ISL calls
+   - Effort: MEDIUM
+
+
+QUICK START FIXES (Do These First)
+================================================================================
+
+Priority 1 (Do immediately - 1 hour total):
+  ✓ Fix sequential validation calls (validation_orchestrator.py)
+  ✓ Fix sequential CEE calls (disagreement_analyzer.py)
+  ✓ Fix sequential decision recording lookups (decisions.py)
+  ✓ Add missing database indexes
+
+Priority 2 (Do next - 2-3 hours):
+  ✓ Fix N+1 profile lookups (profile_extractor.py)
+  ✓ Increase database pool size to 20-30
+  ✓ Fix expire_on_commit=False in database.py
+  ✓ Replace .dict() calls with .model_dump(exclude={...})
+  ✓ Cache CEE responses by seed
+
+Priority 3 (Do after - 4-5 hours):
+  ✓ Implement query-level caching for services
+  ✓ Move portfolio aggregations to SQL queries
+  ✓ Fix Redis connection pool size
+  ✓ Use Redis for distributed rate limiting
+
+
+ESTIMATED PERFORMANCE IMPROVEMENTS
+================================================================================
+
+After Priority 1 fixes:
+  - Option validation latency: 300s → 60s (80% reduction)
+  - Decision recording latency: 10s → 2s (80% reduction)
+  - Analysis phase latency: 20s → 10s (50% reduction)
+
+After Priority 2 fixes:
+  - Profile lookup latency: 100ms → 5ms per lookup
+  - Database connection issues eliminated
+  - Memory footprint reduced by moving to database
+
+After Priority 3 fixes:
+  - Portfolio analytics: 10s → 1s (using cache)
+  - CEE call reduction: 60% (via response caching)
+  - Redis operations: 30% faster (larger pool size)
+  - Rate limiter works across multiple servers
+
+
+FILES REFERENCED IN ANALYSIS
+================================================================================
+
+Critical:
+- src/services/validation_orchestrator.py
+- src/api/routes/collaboration.py
+- src/services/profile_extractor.py
+- src/api/routes/decisions.py
+- src/storage/database.py
+- src/storage/cache.py
+
+Important:
+- src/services/disagreement_analyzer.py
+- src/storage/db_models.py
+- src/api/routes/options.py
+- src/api/middleware/rate_limiter.py
+- src/clients/cee_client.py
+- src/clients/isl_client.py
+- src/services/collaboration_manager.py
+- src/services/portfolio_analyzer.py
+
+Configuration:
+- src/config/settings.py
+- src/api/metrics.py
+
+
+TESTING RECOMMENDATIONS
+================================================================================
+
+1. Load test with 100+ concurrent WebSocket connections
+2. Stress test option validation with 10+ options
+3. Performance test portfolio analytics with 1000+ sessions
+4. Monitor memory growth over 24-hour period
+5. Test database connection pool exhaustion scenarios
+6. Benchmark CEE response caching effectiveness
+
