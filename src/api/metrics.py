@@ -334,3 +334,131 @@ cache_expiry_total = Counter(
     'Total cache entries expired',
     ['cache_type']
 )
+
+# Database Performance
+database_query_duration_seconds = Histogram(
+    'tae_database_query_duration_seconds',
+    'Database query duration in seconds',
+    ['operation'],  # select, insert, update, delete
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0)
+)
+
+database_connection_pool_size = Gauge(
+    'tae_database_connection_pool_size',
+    'Current database connection pool size'
+)
+
+database_connection_pool_in_use = Gauge(
+    'tae_database_connection_pool_in_use',
+    'Number of database connections currently in use'
+)
+
+database_connection_pool_overflow = Gauge(
+    'tae_database_connection_pool_overflow',
+    'Number of overflow connections created'
+)
+
+database_transaction_duration_seconds = Histogram(
+    'tae_database_transaction_duration_seconds',
+    'Database transaction duration in seconds',
+    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0)
+)
+
+# Error Tracking
+errors_total = Counter(
+    'tae_errors_total',
+    'Total errors by type and severity',
+    ['error_type', 'severity']  # validation, timeout, isl_failure, etc.
+)
+
+http_errors_total = Counter(
+    'tae_http_errors_total',
+    'Total HTTP errors by status code',
+    ['status_code', 'endpoint']
+)
+
+external_service_errors_total = Counter(
+    'tae_external_service_errors_total',
+    'Total external service errors',
+    ['service', 'error_type']  # isl, cee, redis
+)
+
+# Degraded Mode
+degraded_mode_activations_total = Counter(
+    'tae_degraded_mode_activations_total',
+    'Total degraded mode activations',
+    ['reason']  # redis_unavailable, isl_timeout, cee_unavailable
+)
+
+degraded_mode_active = Gauge(
+    'tae_degraded_mode_active',
+    'Whether degraded mode is currently active',
+    ['component']  # redis, isl, cee
+)
+
+degraded_mode_duration_seconds = Histogram(
+    'tae_degraded_mode_duration_seconds',
+    'Duration of degraded mode episodes in seconds',
+    ['component'],
+    buckets=(1, 5, 10, 30, 60, 300, 600, 3600)
+)
+
+# Queue Performance (for async tasks)
+queue_depth = Gauge(
+    'tae_queue_depth',
+    'Current queue depth',
+    ['queue_name']  # validation_queue, notification_queue, etc.
+)
+
+queue_processing_duration_seconds = Histogram(
+    'tae_queue_processing_duration_seconds',
+    'Queue task processing duration in seconds',
+    ['queue_name'],
+    buckets=(0.01, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0)
+)
+
+queue_tasks_processed_total = Counter(
+    'tae_queue_tasks_processed_total',
+    'Total queue tasks processed',
+    ['queue_name', 'status']  # success, failure, timeout
+)
+
+# Consensus Algorithm Performance
+consensus_calculation_duration_seconds = Histogram(
+    'tae_consensus_calculation_duration_seconds',
+    'Consensus calculation duration in seconds',
+    ['stakeholder_count'],  # <5, 5-10, 10-20, >20
+    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0)
+)
+
+graph_merge_duration_seconds = Histogram(
+    'tae_graph_merge_duration_seconds',
+    'Team perspective graph merge duration in seconds',
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
+)
+
+conflict_resolution_duration_seconds = Histogram(
+    'tae_conflict_resolution_duration_seconds',
+    'Conflict resolution duration in seconds',
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
+)
+
+# PLoT Integration
+plot_requests_total = Counter(
+    'tae_plot_requests_total',
+    'Total requests from PLoT orchestration',
+    ['capability']  # core_alignment, d1_portfolio, d3_dependencies, d4_patterns
+)
+
+plot_response_size_bytes = Histogram(
+    'tae_plot_response_size_bytes',
+    'PLoT response payload size in bytes',
+    ['capability'],
+    buckets=(100, 1000, 10000, 100000, 1000000)
+)
+
+plot_capability_errors_total = Counter(
+    'tae_plot_capability_errors_total',
+    'Total PLoT capability processing errors',
+    ['capability', 'error_type']
+)
