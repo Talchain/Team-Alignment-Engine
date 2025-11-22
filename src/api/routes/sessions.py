@@ -1,13 +1,14 @@
 """Session management endpoints."""
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, status, Depends
+from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 from uuid import UUID
 from datetime import datetime
 
 from src.models import SessionStatus, DecisionType, AlignmentMode
 from src.services import SessionManager
+from src.auth import get_current_active_user, require_role, User
 
 router = APIRouter(prefix="/api/v1/alignment/sessions", tags=["sessions"])
 
@@ -19,13 +20,12 @@ class CreateSessionRequest(BaseModel):
     """Request model for creating a session."""
 
     team_id: UUID
-    decision_topic: str
-    decision_context: str
+    decision_topic: str = Field(..., min_length=1, max_length=500, description="Decision topic")
+    decision_context: str = Field(..., min_length=1, max_length=2000, description="Decision context")
     decision_type: DecisionType = DecisionType.CUSTOM
     alignment_mode: AlignmentMode = AlignmentMode.EVIDENCE_BACKED
-    stakeholders: List[Dict[str, str]]  # {user_id, role, name, email}
+    stakeholders: List[Dict[str, str]] = Field(..., min_items=1, max_items=50, description="Stakeholders")
     scenario_model_id: Optional[UUID] = None
-    created_by: UUID
 
 
 class CreateSessionResponse(BaseModel):
@@ -49,13 +49,24 @@ class SessionResponse(BaseModel):
 
 
 @router.post("", response_model=CreateSessionResponse, status_code=status.HTTP_201_CREATED)
-async def create_session(request: CreateSessionRequest) -> CreateSessionResponse:
+async def create_session(
+    request: CreateSessionRequest,
+    current_user: User = Depends(get_current_active_user)
+) -> CreateSessionResponse:
     """
     Create new alignment session.
 
+    Requires authentication. User must be team_lead or admin role.
     Automatically includes baseline "Status Quo" option.
     Configures goal dimensions based on decision_type template.
     """
+    # Verify user has permission to create sessions for this team
+    if current_user.role not in ["admin", "team_lead"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Required role: admin or team_lead"
+        )
+
     # Create session
     session = await session_manager.create(
         team_id=request.team_id,
@@ -64,7 +75,7 @@ async def create_session(request: CreateSessionRequest) -> CreateSessionResponse
         decision_type=request.decision_type,
         alignment_mode=request.alignment_mode,
         stakeholders=request.stakeholders,
-        created_by=request.created_by,
+        created_by=current_user.user_id,
         scenario_model_id=request.scenario_model_id,
     )
 
@@ -81,8 +92,11 @@ async def create_session(request: CreateSessionRequest) -> CreateSessionResponse
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
-async def get_session(session_id: UUID) -> SessionResponse:
-    """Get session status and progress."""
+async def get_session(
+    session_id: UUID,
+    current_user: User = Depends(get_current_active_user)
+) -> SessionResponse:
+    """Get session status and progress. Requires authentication."""
     session = await session_manager.get(session_id)
 
     if not session:
@@ -112,8 +126,12 @@ async def get_session(session_id: UUID) -> SessionResponse:
 
 
 @router.patch("/{session_id}/status")
-async def update_session_status(session_id: UUID, new_status: SessionStatus):
-    """Update session status."""
+async def update_session_status(
+    session_id: UUID,
+    new_status: SessionStatus,
+    current_user: User = Depends(require_role(["admin", "team_lead"]))
+):
+    """Update session status. Requires admin or team_lead role."""
     session = await session_manager.get(session_id)
 
     if not session:

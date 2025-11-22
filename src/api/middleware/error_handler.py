@@ -80,14 +80,21 @@ def setup_error_handlers(app: FastAPI) -> None:
             exc_info=True,
         )
 
+        # Sanitize error message in production
+        from src.config import settings
+        if settings.environment == "production":
+            error_message = "An internal server error occurred. Please contact support."
+        else:
+            error_message = str(exc)
+
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "schema": "error.v1",
                 "code": "INTERNAL_ERROR",
-                "message": str(exc),
+                "message": error_message,
                 "request_id": request_id,
-                "suggested_action": "retry_later",
+                "suggested_action": "contact_support" if settings.environment == "production" else "retry_later",
             },
         )
 

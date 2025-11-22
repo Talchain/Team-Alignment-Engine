@@ -9,8 +9,8 @@ from src.config import settings
 from src.api.middleware import (
     RequestIDMiddleware,
     setup_error_handlers,
-    RateLimiterMiddleware,
 )
+from src.api.middleware.redis_rate_limiter import RedisRateLimiterMiddleware
 from src.api.routes import (
     health_router,
     sessions_router,
@@ -60,7 +60,7 @@ app.add_middleware(
 
 # Add custom middleware
 app.add_middleware(RequestIDMiddleware)
-app.add_middleware(RateLimiterMiddleware)
+app.add_middleware(RedisRateLimiterMiddleware)
 app.add_middleware(MetricsMiddleware)
 
 # Set up error handlers

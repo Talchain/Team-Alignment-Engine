@@ -83,10 +83,26 @@ class Settings(BaseSettings):
     cee_use_mock: bool = True  # Set to false when real CEE ready
 
     def get_cors_origins(self) -> List[str]:
-        """Parse CORS origins from comma-separated string or list."""
+        """
+        Parse and validate CORS origins from comma-separated string or list.
+
+        Raises:
+            ValueError: If wildcard (*) used in production
+        """
         if isinstance(self.cors_origins, str):
-            return [origin.strip() for origin in self.cors_origins.split(",")]
-        return self.cors_origins
+            origins = [origin.strip() for origin in self.cors_origins.split(",")]
+        else:
+            origins = self.cors_origins
+
+        # Validate: No wildcards in production
+        if self.environment == "production":
+            for origin in origins:
+                if "*" in origin:
+                    raise ValueError(
+                        f"Wildcard CORS origins not allowed in production: {origin}"
+                    )
+
+        return origins
 
 
 # Global settings instance
