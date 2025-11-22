@@ -247,10 +247,15 @@ class CrossTeamCoordinator:
         # Check for circular dependencies (already prevented by dependency manager)
         # Check for long dependency chains
 
+        # Use bulk query to get all blocking sessions at once (eliminates N+1 pattern)
+        session_ids = [session.session_id for session in sessions]
+        blocking_sessions_map = await self.dependency_manager.bulk_get_blocking_sessions(
+            session_ids
+        )
+
+        # Check each session for excessive dependencies
         for session in sessions:
-            blocking_sessions = await self.dependency_manager.get_blocking_sessions(
-                session.session_id
-            )
+            blocking_sessions = blocking_sessions_map.get(session.session_id, [])
 
             if len(blocking_sessions) >= 3:
                 # Decision blocked by many dependencies

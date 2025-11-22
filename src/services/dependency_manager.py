@@ -535,3 +535,59 @@ class DecisionDependencyManager:
                 exc_info=True,
             )
             return []
+
+    async def bulk_get_blocking_sessions(
+        self, session_ids: List[UUID]
+    ) -> Dict[UUID, List[UUID]]:
+        """
+        Get blocking sessions for multiple sessions in one query (bulk operation).
+
+        This method eliminates N+1 queries by fetching all blocking sessions
+        for multiple session IDs in a single operation.
+
+        Args:
+            session_ids: List of session IDs to check
+
+        Returns:
+            Dict mapping session_id -> list of blocking session IDs
+        """
+        try:
+            if not session_ids:
+                return {}
+
+            # Build dependency graph once
+            graph = await self._build_dependency_graph()
+
+            # Build result dict for all requested sessions
+            result: Dict[UUID, List[UUID]] = {}
+
+            for session_id in session_ids:
+                if session_id not in graph:
+                    result[session_id] = []
+                else:
+                    # Get all predecessors (incoming dependencies)
+                    predecessors = list(graph.predecessors(session_id))
+                    # TODO: Filter to only unresolved dependencies when dependency table exists
+                    result[session_id] = predecessors
+
+            logger.debug(
+                "bulk_get_blocking_sessions_completed",
+                extra={
+                    "session_count": len(session_ids),
+                    "total_blocking_sessions": sum(len(v) for v in result.values()),
+                },
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                "failed_to_bulk_get_blocking_sessions",
+                extra={
+                    "session_count": len(session_ids),
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
+            # Return empty dict for all sessions on error
+            return {sid: [] for sid in session_ids}

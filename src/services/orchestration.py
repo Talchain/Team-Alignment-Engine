@@ -2,6 +2,9 @@
 
 Aggregates Phase D capabilities (D1/D3/D4) into unified response payload.
 Implements capability-based filtering and graceful degradation.
+
+Phase 4: Added resilience patterns (timeouts + circuit breakers) to prevent
+cascading failures and ensure <5s p95 latency target.
 """
 
 import logging
@@ -38,8 +41,24 @@ from src.services.coordination_manager import CrossTeamCoordinator
 from src.services.collaboration_manager import CollaborationManager
 from src.storage.cache import get_cache
 from src.utils.profiling import profile_async, profile_block
+from src.utils.resilience import (
+    get_circuit_breaker,
+    CircuitBreakerOpenError,
+    TimeoutError as ResilienceTimeoutError,
+)
 
 logger = logging.getLogger(__name__)
+
+# Per-capability timeout configuration (seconds)
+# Allocated from 5s total budget, accounting for parallel execution
+CAPABILITY_TIMEOUTS = {
+    "core_alignment": 1.0,  # D1: Fast session lookup
+    "d2_collaboration": 0.5,  # D2: Redis-backed, should be fast
+    "d3_dependencies": 1.5,  # D3: Graph queries, moderate complexity
+    "d4_patterns": 2.0,  # D4: Pattern analysis (with caching)
+    "d5_analytics": 3.0,  # D5: Most expensive (even with caching)
+    "d6_coordination": 1.5,  # D6: Conflict detection (optimized bulk queries)
+}
 
 
 class OrchestrationService:
@@ -125,30 +144,51 @@ class OrchestrationService:
         availability_status: Dict[str, bool] = {}
         errors: List[str] = []
 
-        # Execute requested capabilities in parallel for performance
+        # Execute requested capabilities in parallel with timeouts
         capability_tasks = {}
 
         if "core_alignment" in capabilities:
-            capability_tasks["core_alignment"] = self._get_core_alignment(session_id)
+            timeout = CAPABILITY_TIMEOUTS["core_alignment"]
+            capability_tasks["core_alignment"] = asyncio.wait_for(
+                self._get_core_alignment(session_id),
+                timeout=timeout,
+            )
 
         if "d3_dependencies" in capabilities:
-            capability_tasks["d3_dependencies"] = self._get_dependencies(session_id)
+            timeout = CAPABILITY_TIMEOUTS["d3_dependencies"]
+            capability_tasks["d3_dependencies"] = asyncio.wait_for(
+                self._get_dependencies(session_id),
+                timeout=timeout,
+            )
 
         if "d4_patterns" in capabilities:
-            capability_tasks["d4_patterns"] = self._get_patterns(
-                session_id, organization_id
+            timeout = CAPABILITY_TIMEOUTS["d4_patterns"]
+            capability_tasks["d4_patterns"] = asyncio.wait_for(
+                self._get_patterns(session_id, organization_id),
+                timeout=timeout,
             )
 
         if "d5_analytics" in capabilities:
-            capability_tasks["d5_analytics"] = self._get_analytics(organization_id)
+            # D5 uses circuit breaker pattern due to high latency
+            timeout = CAPABILITY_TIMEOUTS["d5_analytics"]
+            capability_tasks["d5_analytics"] = asyncio.wait_for(
+                self._get_analytics_with_circuit_breaker(organization_id),
+                timeout=timeout,
+            )
 
         if "d6_coordination" in capabilities:
-            capability_tasks["d6_coordination"] = self._get_conflicts(
-                session_id, organization_id
+            timeout = CAPABILITY_TIMEOUTS["d6_coordination"]
+            capability_tasks["d6_coordination"] = asyncio.wait_for(
+                self._get_conflicts(session_id, organization_id),
+                timeout=timeout,
             )
 
         if "d2_collaboration" in capabilities:
-            capability_tasks["d2_collaboration"] = self._get_collaboration(session_id)
+            timeout = CAPABILITY_TIMEOUTS["d2_collaboration"]
+            capability_tasks["d2_collaboration"] = asyncio.wait_for(
+                self._get_collaboration(session_id),
+                timeout=timeout,
+            )
 
         # Execute all capability tasks in parallel
         results = await asyncio.gather(
@@ -647,6 +687,55 @@ class OrchestrationService:
     # =========================================================================
     # D5: ADVANCED ANALYTICS
     # =========================================================================
+
+    async def _get_analytics_with_circuit_breaker(
+        self, organization_id: str
+    ) -> Optional[TrendInsights]:
+        """Get analytics with circuit breaker pattern for fault tolerance.
+
+        Wraps _get_analytics with circuit breaker to prevent cascading failures
+        when D5 analytics service is experiencing high error rates.
+
+        Args:
+            organization_id: Organization ID
+
+        Returns:
+            TrendInsights or None (fallback if circuit is open)
+        """
+        # Get or create circuit breaker for D5 analytics
+        circuit_breaker = get_circuit_breaker(
+            name="d5_analytics",
+            failure_threshold=0.5,  # Open after 50% failure rate
+            min_requests=5,  # Need at least 5 requests to evaluate
+            recovery_timeout=30.0,  # Test recovery after 30 seconds
+        )
+
+        try:
+            # Execute with circuit breaker protection
+            result = await circuit_breaker.call(
+                self._get_analytics,
+                organization_id,
+                fallback=None,  # Return None if circuit is open
+            )
+            return result
+
+        except CircuitBreakerOpenError as e:
+            logger.warning(
+                "D5 analytics circuit breaker open - returning fallback",
+                extra={
+                    "organization_id": organization_id,
+                    "circuit_state": circuit_breaker.state,
+                    "failure_rate": circuit_breaker.failure_rate,
+                },
+            )
+            return None  # Graceful degradation
+        except Exception as e:
+            logger.error(
+                "D5 analytics failed through circuit breaker",
+                extra={"organization_id": organization_id, "error": str(e)},
+                exc_info=True,
+            )
+            raise
 
     @profile_async("d5_analytics", capability="d5")
     async def _get_analytics(self, organization_id: str) -> Optional[TrendInsights]:

@@ -1,6 +1,7 @@
 """Pattern analyzer service for Phase D4."""
 
 import logging
+import json
 from typing import Dict, List, Optional
 from uuid import UUID
 from datetime import datetime, timedelta
@@ -16,6 +17,8 @@ from src.models.portfolio import (
 from src.models.session import AlignmentSession
 from src.models.enums import SessionStatus, DecisionType
 from src.clients.cee_client import CEEClient
+from src.storage.cache import get_cache
+from src.utils.profiling import profile_block
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +26,19 @@ logger = logging.getLogger(__name__)
 class PatternAnalyzer:
     """Analyze decision patterns to identify organizational learning opportunities."""
 
-    def __init__(self, db: AsyncSession, cee_client: Optional[CEEClient] = None):
+    def __init__(self, db: AsyncSession, cee_client: Optional[CEEClient] = None, cache=None):
         """
         Initialize pattern analyzer.
 
         Args:
             db: Database session
             cee_client: Optional CEE client for pattern analysis
+            cache: Optional Redis cache instance (default: get_cache())
         """
         self.db = db
         self.cee_client = cee_client or CEEClient()
+        self.cache = cache or get_cache()
+        self._cache_ttl = 86400  # 24 hours (patterns change slowly)
 
     async def extract_patterns(
         self,
@@ -43,6 +49,9 @@ class PatternAnalyzer:
         """
         Extract decision patterns from historical data.
 
+        Implements Redis caching with 24-hour TTL to avoid recomputing
+        expensive pattern analysis on every request.
+
         Args:
             organization_id: Organization ID
             lookback_days: Days of history to analyze
@@ -52,52 +61,151 @@ class PatternAnalyzer:
             Organizational patterns with success/failure insights
         """
         try:
-            # Get completed sessions in lookback period
-            cutoff_date = datetime.utcnow() - timedelta(days=lookback_days)
+            # Build cache key
+            cache_key = f"tae:patterns:{organization_id}:lookback_{lookback_days}"
 
-            query = select(AlignmentSession).where(
-                and_(
-                    AlignmentSession.status == SessionStatus.COMPLETE,
-                    AlignmentSession.completed_at >= cutoff_date,
+            # 1. Check cache first
+            async with profile_block("d4_cache_lookup", capability="d4", cache_hit=None):
+                cached_data = await self.cache.get(cache_key)
+
+            if cached_data:
+                async with profile_block("d4_cache_deserialize", capability="d4", cache_hit=True):
+                    try:
+                        data = json.loads(cached_data)
+                        logger.info(
+                            "pattern_cache_hit",
+                            extra={
+                                "organization_id": str(organization_id),
+                                "cache_key": cache_key,
+                            },
+                        )
+                        # Reconstruct OrganizationalPatterns from cached data
+                        return OrganizationalPatterns(
+                            organization_id=UUID(data["organization_id"]),
+                            analysis_period_days=data["analysis_period_days"],
+                            total_sessions_analyzed=data["total_sessions_analyzed"],
+                            patterns=[
+                                DecisionPattern(**p) for p in data["patterns"]
+                            ],
+                            success_factors=data["success_factors"],
+                            failure_indicators=data["failure_indicators"],
+                            recommendations=data["recommendations"],
+                            generated_at=datetime.fromisoformat(data["generated_at"]),
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "pattern_cache_deserialize_failed",
+                            extra={"error": str(e)},
+                        )
+                        # Fall through to recompute
+
+            # 2. Cache miss - compute patterns
+            logger.info(
+                "pattern_cache_miss",
+                extra={
+                    "organization_id": str(organization_id),
+                    "cache_key": cache_key,
+                },
+            )
+
+            async with profile_block("d4_pattern_extraction", capability="d4", cache_hit=False):
+                # Get completed sessions in lookback period
+                cutoff_date = datetime.utcnow() - timedelta(days=lookback_days)
+
+                query = select(AlignmentSession).where(
+                    and_(
+                        AlignmentSession.status == SessionStatus.COMPLETE,
+                        AlignmentSession.completed_at >= cutoff_date,
+                    )
                 )
-            )
-            result = await self.db.execute(query)
-            sessions = list(result.scalars().all())
+                result = await self.db.execute(query)
+                sessions = list(result.scalars().all())
 
-            if len(sessions) < min_sample_size:
-                logger.warning(
-                    "insufficient_sessions_for_patterns",
-                    extra={
-                        "organization_id": str(organization_id),
-                        "session_count": len(sessions),
-                        "min_required": min_sample_size,
-                    },
+                if len(sessions) < min_sample_size:
+                    logger.warning(
+                        "insufficient_sessions_for_patterns",
+                        extra={
+                            "organization_id": str(organization_id),
+                            "session_count": len(sessions),
+                            "min_required": min_sample_size,
+                        },
+                    )
+
+                # Extract patterns by decision type
+                patterns = await self._identify_patterns(sessions, min_sample_size)
+
+                # Identify success factors
+                success_factors = self._identify_success_factors(sessions, patterns)
+
+                # Identify failure indicators
+                failure_indicators = self._identify_failure_indicators(sessions, patterns)
+
+                # Generate recommendations via CEE
+                recommendations = await self._generate_recommendations(
+                    patterns, success_factors, failure_indicators
                 )
 
-            # Extract patterns by decision type
-            patterns = await self._identify_patterns(sessions, min_sample_size)
+                result_obj = OrganizationalPatterns(
+                    organization_id=organization_id,
+                    analysis_period_days=lookback_days,
+                    total_sessions_analyzed=len(sessions),
+                    patterns=patterns,
+                    success_factors=success_factors,
+                    failure_indicators=failure_indicators,
+                    recommendations=recommendations,
+                    generated_at=datetime.utcnow(),
+                )
 
-            # Identify success factors
-            success_factors = self._identify_success_factors(sessions, patterns)
+            # 3. Store in cache
+            async with profile_block("d4_cache_store", capability="d4", cache_hit=False):
+                try:
+                    # Serialize to JSON
+                    cache_data = {
+                        "organization_id": str(result_obj.organization_id),
+                        "analysis_period_days": result_obj.analysis_period_days,
+                        "total_sessions_analyzed": result_obj.total_sessions_analyzed,
+                        "patterns": [
+                            {
+                                "pattern_id": p.pattern_id,
+                                "pattern_type": p.pattern_type,
+                                "decision_type": p.decision_type,
+                                "sample_size": p.sample_size,
+                                "description": p.description,
+                                "common_characteristics": p.common_characteristics,
+                                "avg_metrics": p.avg_metrics,
+                                "confidence": p.confidence,
+                                "recommendations": p.recommendations,
+                            }
+                            for p in result_obj.patterns
+                        ],
+                        "success_factors": result_obj.success_factors,
+                        "failure_indicators": result_obj.failure_indicators,
+                        "recommendations": result_obj.recommendations,
+                        "generated_at": result_obj.generated_at.isoformat(),
+                    }
 
-            # Identify failure indicators
-            failure_indicators = self._identify_failure_indicators(sessions, patterns)
+                    await self.cache.setex(
+                        cache_key,
+                        self._cache_ttl,
+                        json.dumps(cache_data),
+                    )
 
-            # Generate recommendations via CEE
-            recommendations = await self._generate_recommendations(
-                patterns, success_factors, failure_indicators
-            )
+                    logger.info(
+                        "pattern_cached",
+                        extra={
+                            "organization_id": str(organization_id),
+                            "cache_key": cache_key,
+                            "ttl": self._cache_ttl,
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "failed_to_cache_patterns",
+                        extra={"error": str(e)},
+                    )
+                    # Non-fatal - return computed result anyway
 
-            return OrganizationalPatterns(
-                organization_id=organization_id,
-                analysis_period_days=lookback_days,
-                total_sessions_analyzed=len(sessions),
-                patterns=patterns,
-                success_factors=success_factors,
-                failure_indicators=failure_indicators,
-                recommendations=recommendations,
-                generated_at=datetime.utcnow(),
-            )
+            return result_obj
 
         except Exception as e:
             logger.error(
@@ -440,3 +548,66 @@ class PatternAnalyzer:
             "Establish early warning systems for failure indicators",
             "Conduct retrospectives to continuously refine decision processes",
         ]
+
+    async def invalidate_pattern_cache(
+        self,
+        organization_id: UUID,
+        lookback_days: Optional[int] = None,
+    ) -> None:
+        """
+        Invalidate cached pattern analysis for an organization.
+
+        Should be called when:
+        - A new retrospective is added
+        - Session completion data is updated
+        - Pattern analysis parameters change
+
+        Args:
+            organization_id: Organization ID
+            lookback_days: Specific lookback period to invalidate (None = all)
+        """
+        try:
+            if lookback_days is not None:
+                # Invalidate specific lookback period
+                cache_key = f"tae:patterns:{organization_id}:lookback_{lookback_days}"
+                await self.cache.delete(cache_key)
+                logger.info(
+                    "pattern_cache_invalidated",
+                    extra={
+                        "organization_id": str(organization_id),
+                        "cache_key": cache_key,
+                    },
+                )
+            else:
+                # Invalidate all lookback periods (scan for matching keys)
+                pattern = f"tae:patterns:{organization_id}:*"
+                # Use Redis SCAN to find and delete all matching keys
+                cursor = 0
+                deleted_count = 0
+                while True:
+                    cursor, keys = await self.cache.scan(
+                        cursor, match=pattern, count=100
+                    )
+                    if keys:
+                        await self.cache.delete(*keys)
+                        deleted_count += len(keys)
+                    if cursor == 0:
+                        break
+
+                logger.info(
+                    "pattern_cache_invalidated_all",
+                    extra={
+                        "organization_id": str(organization_id),
+                        "keys_deleted": deleted_count,
+                    },
+                )
+
+        except Exception as e:
+            logger.warning(
+                "failed_to_invalidate_pattern_cache",
+                extra={
+                    "organization_id": str(organization_id),
+                    "error": str(e),
+                },
+            )
+            # Non-fatal - cache will expire naturally after TTL
