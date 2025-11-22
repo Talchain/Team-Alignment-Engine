@@ -16,6 +16,7 @@ from src.models.portfolio import (
 from src.models.session import AlignmentSession
 from src.models.enums import SessionStatus
 from src.services.dependency_manager import DecisionDependencyManager
+from src.utils.profiling import profile_async
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,7 @@ class CrossTeamCoordinator:
             )
             raise
 
+    @profile_async("d6_detect_conflicts", capability="d6")
     async def detect_conflicts(
         self, session_ids: List[UUID]
     ) -> List[ConflictDetection]:

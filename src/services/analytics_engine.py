@@ -17,6 +17,7 @@ from src.models.portfolio import (
 )
 from src.models.session import AlignmentSession
 from src.models.enums import SessionStatus, DecisionType
+from src.utils.profiling import profile_async
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class AdvancedAnalyticsEngine:
         """
         self.db = db
 
+    @profile_async("d5_analyze_trends", capability="d5")
     async def analyze_trends(
         self,
         organization_id: UUID,

@@ -14,6 +14,7 @@ from src.models.portfolio import (
     CollaborationAction,
     SessionState,
 )
+from src.utils.profiling import profile_async
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,7 @@ class CollaborationManager:
                 exc_info=True,
             )
 
+    @profile_async("d2_get_active_users", capability="d2")
     async def get_active_users(self, session_id: UUID) -> List[UserPresence]:
         """
         Get list of active users in a session.

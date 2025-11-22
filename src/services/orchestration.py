@@ -37,6 +37,7 @@ from src.services.analytics_engine import AdvancedAnalyticsEngine
 from src.services.coordination_manager import CrossTeamCoordinator
 from src.services.collaboration_manager import CollaborationManager
 from src.storage.cache import get_cache
+from src.utils.profiling import profile_async, profile_block
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +242,7 @@ class OrchestrationService:
     # D1: CORE ALIGNMENT
     # =========================================================================
 
+    @profile_async("d1_core_alignment", capability="d1")
     async def _get_core_alignment(
         self, session_id: Optional[str]
     ) -> Optional[AlignmentData]:
@@ -437,6 +439,7 @@ class OrchestrationService:
     # D3: DEPENDENCIES
     # =========================================================================
 
+    @profile_async("d3_dependencies", capability="d3")
     async def _get_dependencies(
         self, session_id: Optional[str]
     ) -> List[DecisionDependency]:
@@ -514,6 +517,7 @@ class OrchestrationService:
     # D4: ORGANIZATIONAL PATTERNS
     # =========================================================================
 
+    @profile_async("d4_patterns", capability="d4")
     async def _get_patterns(
         self, session_id: Optional[str], organization_id: str
     ) -> List[SimilarDecision]:
@@ -644,6 +648,7 @@ class OrchestrationService:
     # D5: ADVANCED ANALYTICS
     # =========================================================================
 
+    @profile_async("d5_analytics", capability="d5")
     async def _get_analytics(self, organization_id: str) -> Optional[TrendInsights]:
         """Get advanced analytics trend insights (D5).
 
@@ -742,6 +747,7 @@ class OrchestrationService:
     # D6: CROSS-TEAM COORDINATION
     # =========================================================================
 
+    @profile_async("d6_conflicts", capability="d6")
     async def _get_conflicts(
         self, session_id: Optional[str], organization_id: str
     ) -> List[CrossTeamConflict]:
@@ -827,6 +833,7 @@ class OrchestrationService:
     # D2: REAL-TIME COLLABORATION
     # =========================================================================
 
+    @profile_async("d2_collaboration", capability="d2")
     async def _get_collaboration(
         self, session_id: Optional[str]
     ) -> Optional[CollaborationData]:
