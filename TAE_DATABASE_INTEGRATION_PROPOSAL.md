@@ -35,7 +35,7 @@ This will show:
 
 ## 🏗️ TAE Proposed Schema
 
-TAE proposes adding **21 new tables** across 5 functional areas:
+TAE proposes adding **23 new tables** across 5 functional areas:
 
 ### **Area 1: Core Decision Alignment (7 tables)**
 
@@ -96,14 +96,22 @@ Purpose: Cross-session analytics and coordination
 
 ---
 
-### **Area 5: Learning & Retrospectives (2 tables)**
+### **Area 5: Learning & Retrospectives (4 tables)**
 
-Purpose: Post-decision learning and assumption tracking
+Purpose: Post-decision learning, outcome tracking, and autonomous graph refinement
 
 | Table Name | Purpose | Key Data | References |
 |------------|---------|----------|------------|
 | `assumption_validations` | Validate key assumptions | validation_method, result | session_id |
 | `decision_retrospectives` | Post-decision reviews | actual_outcomes, lessons_learned | session_id, brief_id |
+| `decision_outcomes` | Track predicted vs actual outcomes (Phase 5) | decision, predicted_outcomes, actual_outcomes | session_id |
+| `outcome_measurements` | Granular outcome measurements (Phase 5) | metric, actual_value, variance | outcome_id |
+
+**Phase 5 Addition**: The outcome tracking tables enable the autonomous learning system to:
+- Track prediction accuracy over time
+- Learn which causal structures predict well
+- Identify frequently violated assumptions
+- Suggest graph refinements based on historical performance
 
 ---
 
@@ -278,9 +286,12 @@ CREATE INDEX idx_sessions_org_type_completed
 | `tae.deliberation_sessions` | 5,000 | ~1 KB | 5 MB |
 | `tae.deliberation_submissions` | 50,000 | ~3 KB (with graphs) | 150 MB |
 | `tae.user_accuracy_history` | 100,000 | ~500 B | 50 MB |
-| **TOTAL (all tables)** | ~200,000 | - | **~300 MB** |
+| `tae.decision_outcomes` (Phase 5) | 8,000 | ~2 KB | 16 MB |
+| `tae.outcome_measurements` (Phase 5) | 40,000 | ~200 B | 8 MB |
+| **TOTAL (all tables)** | ~213,000 | - | **~350 MB** |
 
-**With Indexes**: ~450 MB total (Year 1)
+**With Indexes**: ~525 MB total (Year 1)
+**Note**: Exceeds Supabase free tier (500 MB) - paid plan recommended
 
 **Supabase Free Tier**: 500 MB database (would need paid plan if other workstreams also heavy)
 
@@ -323,6 +334,14 @@ CREATE TABLE tae.deliberation_sessions (...);
 ```sql
 -- Phase D organizational intelligence (5 tables)
 CREATE TABLE tae.pattern_analysis_cache (...);
+-- ...
+```
+
+**Phase 6: TAE Tables - Autonomous Learning** (Week 5)
+```sql
+-- Phase 5 outcome tracking and learning (2 tables)
+CREATE TABLE tae.decision_outcomes (...);
+CREATE TABLE tae.outcome_measurements (...);
 -- ...
 ```
 
