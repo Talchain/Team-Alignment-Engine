@@ -1,8 +1,8 @@
 # Critical Fixes Implementation Guide
 
-**Status**: 2 of 4 critical blockers completed
-**Completed**: 2025-11-23 (Alembic migration + Aggregation/Preferences auth)
-**Remaining**: Onboarding/Deliberation auth + LLMClient resource leak
+**Status**: 3 of 4 critical blockers completed (75%)
+**Completed**: 2025-11-23 (Alembic migration + All auth + LLMClient resource leak)
+**Remaining**: Database persistence for aggregation history (medium priority)
 
 ---
 
@@ -69,142 +69,139 @@ curl -X POST http://localhost:8000/api/v1/aggregation/analyze \
 
 ## 🔴 Remaining Critical Fixes
 
-### 3. 🔴 Authentication on Onboarding & Deliberation Endpoints (IN PROGRESS)
+### 3. ✅ Authentication on Onboarding & Deliberation Endpoints (COMPLETED)
 
-**Priority**: CRITICAL - Security blocker
-**Estimated Time**: 2-3 hours
-**Risk**: Unauthorized access to user profiles, deliberation data, voting records
+**Priority**: ✅ COMPLETED
+**Time Spent**: 1 hour
+**Risk Mitigated**: Unauthorized access to user profiles, deliberation data, voting records
 
-#### 3a. Onboarding Routes
+#### 3a. ✅ Onboarding Routes
 
-**File**: `src/api/routes/onboarding.py`
+**File**: `src/api/routes/onboarding.py` ✅
 
-**Endpoints to protect** (3 total):
-1. POST `/api/v1/onboarding/start` (line ~40)
-2. POST `/api/v1/onboarding/{session_id}/respond` (line ~110)
-3. GET `/api/v1/onboarding/{session_id}/profile` (line ~180)
+**Protected Endpoints** (3 total):
+1. ✅ POST `/api/v1/onboarding/start`
+2. ✅ POST `/api/v1/onboarding/{session_id}/respond`
+3. ✅ GET `/api/v1/onboarding/{session_id}/profile`
 
-**Implementation**:
+**Implementation** (Completed):
 ```python
-# At top of file, add imports
+# Added imports at top of file
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
 
-# For each endpoint, add parameter
+# Added to all 3 endpoint functions
 async def start_onboarding(
     request_body: StartOnboardingRequestV1,
-    current_user: User = Depends(get_current_user),  # ADD THIS
+    current_user: User = Depends(get_current_user),  # ADDED
     service: OnboardingService = Depends(get_onboarding_service),
 ) -> StartOnboardingResponseV1:
     ...
 ```
 
-**Copy this pattern for all 3 endpoints**.
+#### 3b. ✅ Deliberation Routes
 
-#### 3b. Deliberation Routes
+**File**: `src/api/routes/deliberation.py` ✅
 
-**File**: `src/api/routes/deliberation.py`
+**Protected Endpoints** (7 total):
+1. ✅ POST `/api/v1/deliberation/start` - Create session
+2. ✅ POST `/api/v1/deliberation/{session_id}/submit` - Submit input
+3. ✅ POST `/api/v1/deliberation/{session_id}/vote` - Submit vote
+4. ✅ POST `/api/v1/deliberation/{session_id}/advance` - Advance round
+5. ✅ GET `/api/v1/deliberation/{session_id}/status` - Get status
+6. ✅ GET `/api/v1/deliberation/{session_id}/history` - Get history
+7. ✅ GET `/api/v1/deliberation/{session_id}/health` - Health check
 
-**Endpoints to protect** (estimate 8-10 total):
-
-Based on Phase 1 implementation, likely endpoints:
-1. POST `/api/v1/deliberation/sessions` - Create session
-2. GET `/api/v1/deliberation/sessions/{session_id}` - Get session
-3. POST `/api/v1/deliberation/sessions/{session_id}/rounds` - Create round
-4. POST `/api/v1/deliberation/rounds/{round_id}/submissions` - Submit
-5. POST `/api/v1/deliberation/rounds/{round_id}/votes` - Vote
-6. GET `/api/v1/deliberation/sessions/{session_id}/convergence` - Check convergence
-7. GET `/api/v1/deliberation/sessions/{session_id}/conflicts` - Get conflicts
-8. Plus any other endpoints in the file
-
-**Implementation** (same pattern as above):
+**Implementation** (Completed):
 ```python
-# Add imports at top
+# Added imports at top
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
 
-# For EVERY endpoint function, add:
+# Added to ALL 7 endpoint functions:
 current_user: User = Depends(get_current_user),
-```
-
-**Testing**:
-```bash
-# Check all routes in file
-grep -n "^@router\." src/api/routes/deliberation.py
-
-# Add auth to each one
 ```
 
 ---
 
-### 4. 🔴 Fix LLMClient Resource Leak (HIGH PRIORITY)
+### 4. ✅ Fix LLMClient Resource Leak (COMPLETED)
 
-**Priority**: CRITICAL - Stability blocker
-**Estimated Time**: 1 hour
-**Risk**: Socket exhaustion, memory leak under load
+**Priority**: ✅ COMPLETED
+**Time Spent**: 1.5 hours
+**Risk Mitigated**: Socket exhaustion, memory leak under load
 
-**File**: `src/clients/llm_client.py`
+**File**: `src/clients/llm_client.py` ✅
 
-**Current Issue**:
+**Issue Fixed**:
 ```python
 # Line 36 - httpx.AsyncClient created but never closed
 def __init__(self, ...):
     self.client = httpx.AsyncClient(timeout=timeout)  # LEAK!
 ```
 
-**Fix**: Implement async context manager
+**Implementation** (Completed):
 
 ```python
-# src/clients/llm_client.py
+# src/clients/llm_client.py - COMPLETED
 
 class LLMClient:
-    """Client for LLM-powered synthesis generation."""
+    """Client for LLM-powered synthesis generation.
 
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        model: str = "gpt-4",
-        timeout: int = 60,
-    ):
+    Usage:
+        async with LLMClient() as client:
+            result = await client.generate_synthesis_options(...)
+    """
+
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4", timeout: int = 60):
         self.api_key = api_key or getattr(settings, "openai_api_key", None)
         self.model = model
         self.timeout = timeout
-        self.client: Optional[httpx.AsyncClient] = None  # Don't create yet
+        self.client: Optional[httpx.AsyncClient] = None  # Created in __aenter__
 
     async def __aenter__(self):
-        """Enter async context manager."""
+        """Enter async context manager - create HTTP client."""
         self.client = httpx.AsyncClient(timeout=self.timeout)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Exit async context manager - close client."""
+        """Exit async context manager - close HTTP client."""
         if self.client:
             await self.client.aclose()
         return False
 
-    # Existing methods remain the same
-    async def generate_synthesis_options(...):
+    async def _call_llm(self, prompt: str) -> str:
         if not self.client:
             raise RuntimeError("LLMClient must be used as async context manager")
-        ...
+        # ... rest of method
 ```
 
-**Usage Update** (in consensus_builder.py and any other places):
-```python
-# OLD (leaks resources):
-llm_client = LLMClient()
-result = await llm_client.generate_synthesis_options(...)
+**Dependency Injection Updates** (Completed):
 
-# NEW (proper cleanup):
-async with LLMClient() as llm_client:
-    result = await llm_client.generate_synthesis_options(...)
-# Client automatically closed here
-```
+1. ✅ **src/api/routes/consensus.py** - Updated get_llm_client() to async generator
+   ```python
+   async def get_llm_client():
+       async with LLMClient() as client:
+           yield client
+   ```
 
-**Files to Update**:
-1. `src/clients/llm_client.py` - Add context manager
-2. `src/services/consensus_builder.py` - Update usage
-3. Any other files using LLMClient (check with: `grep -r "LLMClient()" src/`)
+2. ✅ **src/api/routes/deliberation.py** - Updated get_deliberation_service()
+   ```python
+   async def get_deliberation_service(db: AsyncSession = Depends(get_db)):
+       async with LLMClient() as llm_client:
+           consensus_builder = ConsensusBuilder(isl_client=ISLClient(), llm_client=llm_client)
+           service = DeliberationService(repository=repository, consensus_builder=consensus_builder)
+           yield service
+   ```
+
+3. ✅ **src/api/routes/preferences.py** - Updated get_preference_service()
+   ```python
+   async def get_preference_service():
+       async with LLMClient() as llm_client:
+           service = PreferenceElicitationService(llm_client=llm_client)
+           yield service
+   ```
+
+4. ✅ **Service Documentation** - Added notes to all service __init__ methods documenting that LLMClient fallbacks are for testing only
 
 **Testing**:
 ```python
@@ -450,9 +447,9 @@ async def test_llm_client_multiple_calls():
 - [x] 1. Create Alembic migration for Phase 1-3 models (DONE)
 - [x] 2a. Add authentication to aggregation endpoints (DONE)
 - [x] 2b. Add authentication to preferences endpoints (DONE)
-- [ ] 2c. Add authentication to onboarding endpoints (TODO)
-- [ ] 2d. Add authentication to deliberation endpoints (TODO)
-- [ ] 3. Fix LLMClient resource leak (TODO)
+- [x] 2c. Add authentication to onboarding endpoints (DONE)
+- [x] 2d. Add authentication to deliberation endpoints (DONE)
+- [x] 3. Fix LLMClient resource leak (DONE)
 
 ### Medium Priority
 
