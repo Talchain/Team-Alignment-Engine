@@ -457,3 +457,58 @@ class DeliberationConflictDB(Base):
 
     detected_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     resolved_at = Column(DateTime, nullable=True)
+
+
+# Phase 3: Aggregation Intelligence Models
+
+class UserAccuracyHistoryDB(Base):
+    """Database model for user accuracy history (Phase 3: Navajas)."""
+
+    __tablename__ = "user_accuracy_history"
+
+    record_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(100), nullable=False, index=True)
+    session_id = Column(String(100), nullable=True, index=True)
+
+    # Prediction details
+    domain = Column(String(100), nullable=False, index=True)
+    decision_type = Column(String(100), nullable=False)
+    stated_confidence = Column(Float, nullable=False)  # 0.0-1.0
+    prediction_text = Column(String(2000), nullable=True)
+
+    # Outcome details
+    actual_outcome = Column(String(2000), nullable=True)
+    outcome_known = Column(Boolean, nullable=False, default=False)
+    outcome_recorded_at = Column(DateTime, nullable=True)
+
+    # Accuracy metrics
+    brier_score = Column(Float, nullable=True)  # 0.0 (perfect) to 1.0 (worst)
+    was_correct = Column(Boolean, nullable=True)
+    confidence_error = Column(Float, nullable=True)  # signed error: stated - actual
+
+    # Metadata
+    predicted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class UserDomainExpertiseDB(Base):
+    """Database model for user domain expertise (Phase 3: Navajas)."""
+
+    __tablename__ = "user_domain_expertise"
+
+    expertise_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(100), nullable=False, index=True)
+    domain = Column(String(100), nullable=False, index=True)
+
+    # Expertise metrics
+    role_relevance = Column(Float, nullable=False, default=0.5)  # 0.0-1.0
+    historical_accuracy = Column(Float, nullable=False, default=0.5)  # avg Brier score
+    prediction_count = Column(Integer, nullable=False, default=0)
+
+    # Calibration factors
+    overconfidence_bias = Column(Float, nullable=False, default=0.0)  # 0.0 = well calibrated
+    avg_confidence_error = Column(Float, nullable=False, default=0.0)
+
+    # Last updated
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

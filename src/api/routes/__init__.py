@@ -19,6 +19,7 @@ from src.api.routes.consensus import router as consensus_router
 from src.api.routes.deliberation import router as deliberation_router
 from src.api.routes.preferences import router as preferences_router
 from src.api.routes.onboarding import router as onboarding_router
+from src.api.routes.aggregation import router as aggregation_router
 
 __all__ = [
     "health_router",
@@ -40,4 +41,5 @@ __all__ = [
     "deliberation_router",
     "preferences_router",
     "onboarding_router",
+    "aggregation_router",
 ]

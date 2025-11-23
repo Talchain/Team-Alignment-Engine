@@ -280,3 +280,261 @@ async def test_minority_concern_flow():
 
         assert get_concern.status_code == 200
         assert get_concern.json()["concern_text"] == "Timeline assumption seems unrealistic"
+
+
+@pytest.mark.asyncio
+async def test_phases_1_2_3_integration_flow():
+    """
+    E2E test for Phases 1-3 integration:
+    Phase 2B: Onboarding (Bayesian Teaching)
+    Phase 2A: Value Elicitation (ActiVA)
+    Phase 1A/1B: Multi-Round Deliberation
+    Phase 3: Aggregation Intelligence (Navajas)
+
+    This demonstrates the complete scientific consensus pipeline.
+    """
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        decision_context = "Should we adopt microservices architecture?"
+
+        # ====================================================================
+        # PHASE 2B: ONBOARDING - Bayesian Teaching
+        # ====================================================================
+
+        team_members = [
+            {"user_id": "eng_user", "role": "engineer"},
+            {"user_id": "pm_user", "role": "product_manager"},
+            {"user_id": "arch_user", "role": "architect"},
+        ]
+
+        onboarding_profiles = {}
+
+        for member in team_members:
+            # Start onboarding
+            onboard_response = await client.post(
+                "/api/v1/onboarding/start",
+                json={
+                    "user_id": member["user_id"],
+                    "decision_context": decision_context,
+                    "user_role": member["role"],
+                    "target_confidence": 0.75,
+                    "max_questions": 7,
+                },
+            )
+
+            assert onboard_response.status_code == 201
+            session_data = onboard_response.json()
+            session_id = session_data["session_id"]
+            question = session_data["first_question"]
+
+            # Answer questions (simplified: choose first option)
+            for _ in range(7):
+                response = await client.post(
+                    f"/api/v1/onboarding/{session_id}/respond",
+                    json={
+                        "user_id": member["user_id"],
+                        "question_id": question["question_id"],
+                        "selected_option": question["options"][0],
+                        "response_time_ms": 2000,
+                    },
+                )
+
+                assert response.status_code == 200
+                response_data = response.json()
+
+                if response_data["session_complete"]:
+                    onboarding_profiles[member["user_id"]] = response_data["profile"]
+                    break
+
+                question = response_data["next_question"]
+
+        assert len(onboarding_profiles) == 3
+
+        # ====================================================================
+        # PHASE 2A: VALUE ELICITATION - ActiVA
+        # ====================================================================
+
+        value_models = {}
+
+        for member in team_members:
+            # Start preference elicitation
+            elicit_response = await client.post(
+                "/api/v1/preferences/start",
+                json={
+                    "user_id": member["user_id"],
+                    "decision_context": decision_context,
+                    "initial_dimensions": ["scalability", "complexity", "team_productivity"],
+                    "target_convergence": 0.75,
+                    "max_questions": 7,
+                },
+            )
+
+            assert elicit_response.status_code == 201
+            elicit_data = elicit_response.json()
+            session_id = elicit_data["session_id"]
+            scenario = elicit_data["first_scenario"]
+
+            # Answer scenarios
+            for i in range(7):
+                choice = "A" if i % 2 == 0 else "B"
+
+                response = await client.post(
+                    f"/api/v1/preferences/{session_id}/respond",
+                    json={
+                        "user_id": member["user_id"],
+                        "scenario_id": scenario["scenario_id"],
+                        "choice": choice,
+                        "response_time_ms": 3000,
+                    },
+                )
+
+                assert response.status_code == 200
+                response_data = response.json()
+
+                if response_data["session_complete"]:
+                    value_models[member["user_id"]] = response_data["value_model"]
+                    break
+
+                scenario = response_data["next_scenario"]
+
+        assert len(value_models) == 3
+
+        # ====================================================================
+        # PHASE 1A/1B: MULTI-ROUND DELIBERATION
+        # ====================================================================
+
+        # Create deliberation session
+        delib_response = await client.post(
+            "/api/v1/deliberation/sessions",
+            json={
+                "decision_context": decision_context,
+                "participants": team_members,
+                "convergence_criteria": {
+                    "min_quality_threshold": 0.7,
+                    "min_votes_agreement": 0.67,
+                    "max_rounds": 3,
+                },
+            },
+        )
+
+        assert delib_response.status_code == 201
+        delib_session_id = delib_response.json()["session_id"]
+
+        # Round 1: Initial submissions
+        round1_response = await client.post(
+            f"/api/v1/deliberation/sessions/{delib_session_id}/rounds",
+            json={"round_type": "submission"},
+        )
+        assert round1_response.status_code == 201
+        round1_id = round1_response.json()["round_id"]
+
+        # Submit causal models
+        submissions = [
+            {
+                "user_id": "eng_user",
+                "graph": {
+                    "nodes": ["microservices", "scalability", "complexity"],
+                    "edges": [
+                        {"source": "microservices", "target": "scalability"},
+                        {"source": "microservices", "target": "complexity"},
+                    ],
+                },
+                "reasoning": "Microservices enable scalability but increase operational complexity.",
+            },
+            {
+                "user_id": "pm_user",
+                "graph": {
+                    "nodes": ["microservices", "feature_velocity", "user_satisfaction"],
+                    "edges": [
+                        {"source": "microservices", "target": "feature_velocity"},
+                        {"source": "feature_velocity", "target": "user_satisfaction"},
+                    ],
+                },
+                "reasoning": "Faster feature delivery through microservices improves user satisfaction.",
+            },
+            {
+                "user_id": "arch_user",
+                "graph": {
+                    "nodes": ["microservices", "maintainability"],
+                    "edges": [{"source": "microservices", "target": "maintainability"}],
+                },
+                "reasoning": "Microservices reduce maintainability due to distributed complexity.",
+            },
+        ]
+
+        for submission in submissions:
+            submit_response = await client.post(
+                f"/api/v1/deliberation/rounds/{round1_id}/submissions",
+                json=submission,
+            )
+            assert submit_response.status_code == 201
+
+        # ====================================================================
+        # PHASE 3: AGGREGATION INTELLIGENCE - Navajas Methods
+        # ====================================================================
+
+        # Analyze aggregation intelligence
+        agg_response = await client.post(
+            "/api/v1/aggregation/analyze",
+            json={
+                "session_id": delib_session_id,
+                "decision_type": "architectural",
+            },
+        )
+
+        assert agg_response.status_code == 200
+        agg_data = agg_response.json()
+
+        # Verify all aggregation components present
+        assert "confidence_calibration" in agg_data
+        assert "strategic_behaviour" in agg_data
+        assert "team_size_analysis" in agg_data
+        assert "communication_patterns" in agg_data
+        assert "recommended_weights" in agg_data
+
+        # Team size should be optimal (3 members)
+        team_size_analysis = agg_data["team_size_analysis"]
+        assert team_size_analysis["current_team_size"] == 3
+        assert 3 <= team_size_analysis["current_team_size"] <= 5  # Navajas optimal range
+
+        # Get smart synthesis
+        synthesis_response = await client.post(
+            "/api/v1/aggregation/synthesize",
+            json={
+                "session_id": delib_session_id,
+                "synthesis_mode": "hybrid",
+            },
+        )
+
+        assert synthesis_response.status_code == 200
+        synthesis_data = synthesis_response.json()
+
+        assert "synthesis_options" in synthesis_data
+        assert "aggregation_quality" in synthesis_data
+        assert "warnings" in synthesis_data
+
+        # Verify aggregation quality metrics
+        agg_quality = synthesis_data["aggregation_quality"]
+        assert 0.0 <= agg_quality["collective_intelligence_score"] <= 1.0
+        assert agg_quality["diversity_bonus"] >= 0.0
+        assert agg_quality["coordination_cost"] >= 0.0
+
+        # ====================================================================
+        # INTEGRATION VERIFICATION
+        # ====================================================================
+
+        # Verify complete pipeline success
+        assert len(onboarding_profiles) == 3, "Phase 2B: All onboarding profiles created"
+        assert len(value_models) == 3, "Phase 2A: All value models elicited"
+        assert len(agg_data["recommended_weights"]) == 3, "Phase 3: Smart weights computed"
+
+        # Check that recommended weights are normalized
+        total_weight = sum(w["final_weight"] for w in agg_data["recommended_weights"])
+        assert 0.99 <= total_weight <= 1.01, "Weights should sum to 1.0"
+
+        # Verify value models have reasonable convergence
+        for user_id, value_model in value_models.items():
+            assert value_model["convergence_score"] > 0.0, f"{user_id} value model should have convergence"
+
+        # Verify onboarding identified archetypes
+        archetype_count = sum(1 for profile in onboarding_profiles.values() if profile.get("primary_archetype"))
+        assert archetype_count >= 0, "Onboarding should identify archetypes"

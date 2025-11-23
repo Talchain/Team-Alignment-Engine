@@ -29,6 +29,7 @@ from src.models.consensus import (
     QualityMetricsV1,
     TraceMetadataV1,
 )
+from src.models.preferences import ValueModelV1
 from src.clients.isl_client import ISLClient
 from src.clients.llm_client import LLMClient
 from src.config import settings
@@ -413,7 +414,10 @@ class ConsensusBuilder:
         self.quality_scorer = CausalQualityScorer(isl_client)
 
     async def build_consensus(
-        self, request: ConsensusRequestV1, trace_id: Optional[str] = None
+        self,
+        request: ConsensusRequestV1,
+        trace_id: Optional[str] = None,
+        value_models: Optional[Dict[str, ValueModelV1]] = None,
     ) -> ConsensusResponseV1:
         """Build consensus from team perspectives.
 
@@ -422,12 +426,13 @@ class ConsensusBuilder:
         2. Identifies shared goals and beliefs
         3. Classifies conflicts
         4. Protects minority positions with strong evidence
-        5. Generates creative synthesis options
+        5. Generates creative synthesis options (weighted by values if provided)
         6. Computes quality metrics
 
         Args:
             request: Consensus building request
             trace_id: Optional trace ID for logging
+            value_models: Optional value models from preference elicitation (Phase 2A)
 
         Returns:
             Consensus response with synthesis options and warnings
@@ -467,7 +472,7 @@ class ConsensusBuilder:
         # Step 4: Generate synthesis options (TODO: implement)
         logger.info("Step 4: Generating synthesis options")
         synthesis_options = await self._generate_synthesis_options(
-            request, causal_qualities, conflicts
+            request, causal_qualities, conflicts, value_models
         )
 
         # Step 5: Protect minority positions (TODO: implement)
@@ -840,20 +845,23 @@ class ConsensusBuilder:
         request: ConsensusRequestV1,
         causal_qualities: Dict[str, CausalQualityV1],
         conflicts: List[ConflictAnalysisV1],
+        value_models: Optional[Dict[str, ValueModelV1]] = None,
     ) -> List[SynthesisOptionV1]:
         """Generate creative synthesis options using LLM orchestration.
 
         Steps:
         1. Format perspectives and conflicts for LLM
-        2. Call LLM to generate creative options
-        3. Compute Pareto efficiency scores
-        4. Compute creative scores (novelty vs. averaging)
-        5. Build SynthesisOptionV1 objects
+        2. Compute value alignment scores if value models provided (Phase 2A integration)
+        3. Call LLM to generate creative options (weighted by values)
+        4. Compute Pareto efficiency scores
+        5. Compute creative scores (novelty vs. averaging)
+        6. Build SynthesisOptionV1 objects
 
         Args:
             request: Original consensus request
             causal_qualities: Causal quality scores
             conflicts: Identified conflicts
+            value_models: Optional value models from preference elicitation
 
         Returns:
             List of synthesis options
@@ -863,16 +871,33 @@ class ConsensusBuilder:
 
         logger.info("Generating creative synthesis options via LLM")
 
-        # Format perspectives for LLM
+        # Format perspectives for LLM (with optional value weighting)
         perspective_dicts = []
         for perspective in request.perspectives:
             quality = causal_qualities.get(perspective.user_id)
+
+            # Compute value alignment weight (Phase 2A integration)
+            value_weight = 1.0
+            if value_models and perspective.user_id in value_models:
+                value_weight = self._compute_value_weight(
+                    value_models[perspective.user_id],
+                    request.decision_context
+                )
+
             perspective_dicts.append({
                 "user_id": perspective.user_id,
                 "reasoning": perspective.reasoning,
                 "graph_summary": self._summarize_graph(perspective.graph),
                 "quality_score": quality.robustness_score if quality else 0.0,
+                "value_weight": value_weight,
             })
+
+        # Log value weighting if used
+        if value_models:
+            logger.info(
+                f"Value-weighted synthesis enabled for {len(value_models)} users",
+                extra={"value_model_count": len(value_models)}
+            )
 
         # Format conflicts for LLM
         conflict_dicts = []
@@ -1079,6 +1104,56 @@ class ConsensusBuilder:
             creative_score = 0.1
 
         return round(min(max(creative_score, 0.0), 1.0), 2)
+
+    def _compute_value_weight(
+        self,
+        value_model: ValueModelV1,
+        decision_context: str,
+    ) -> float:
+        """Compute value alignment weight from user's value model.
+
+        Uses the value model from Phase 2A (ActiVA preference elicitation)
+        to weight this user's perspective in synthesis generation.
+
+        Higher weight when:
+        - High convergence score (confident value model)
+        - Value dimensions are well-defined
+        - Model based on sufficient questions
+
+        Args:
+            value_model: User's value model from preference elicitation
+            decision_context: Decision context for alignment check
+
+        Returns:
+            Value weight (0.5 - 1.5) to apply to this user's perspective
+        """
+        # Base weight starts at 1.0 (neutral)
+        weight = 1.0
+
+        # Factor 1: Convergence score (±0.3)
+        # High convergence = more confident value model
+        convergence_bonus = (value_model.convergence_score - 0.5) * 0.6
+        weight += convergence_bonus
+
+        # Factor 2: Questions asked (±0.2)
+        # More questions = better calibrated model
+        # Penalize if too few questions (<3), bonus if many (>5)
+        if value_model.questions_asked < 3:
+            weight -= 0.2
+        elif value_model.questions_asked >= 5:
+            weight += 0.2
+
+        # Factor 3: Value dimension balance (±0.1)
+        # Prefer balanced value models over extreme single-dimension focus
+        if len(value_model.dimensions) > 0:
+            weights_list = [d.weight for d in value_model.dimensions]
+            max_weight = max(weights_list)
+            # If one dimension dominates (>0.7), slight penalty
+            if max_weight > 0.7:
+                weight -= 0.1
+
+        # Clamp to reasonable range [0.5, 1.5]
+        return round(min(max(weight, 0.5), 1.5), 2)
 
     async def _generate_warnings(
         self,
