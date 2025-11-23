@@ -20,6 +20,8 @@ from src.api.routes.deliberation import router as deliberation_router
 from src.api.routes.preferences import router as preferences_router
 from src.api.routes.onboarding import router as onboarding_router
 from src.api.routes.aggregation import router as aggregation_router
+from src.api.routes.outcomes import router as outcomes_router
+from src.api.routes.graph_analysis import router as graph_analysis_router
 
 __all__ = [
     "health_router",
@@ -42,4 +44,6 @@ __all__ = [
     "preferences_router",
     "onboarding_router",
     "aggregation_router",
+    "outcomes_router",
+    "graph_analysis_router",
 ]

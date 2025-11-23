@@ -32,6 +32,8 @@ from src.api.routes import (
     preferences_router,
     onboarding_router,
     aggregation_router,
+    outcomes_router,
+    graph_analysis_router,
 )
 from src.api.metrics import MetricsMiddleware, metrics_endpoint
 from src.storage import init_db, init_cache
@@ -85,6 +87,8 @@ app.include_router(deliberation_router)  # Multi-Round Deliberation (Phase 1A/1B
 app.include_router(preferences_router)  # Preference Elicitation (Phase 2A: ActiVA)
 app.include_router(onboarding_router)  # Onboarding (Phase 2B: Bayesian Teaching)
 app.include_router(aggregation_router)  # Aggregation Intelligence (Phase 3: Navajas)
+app.include_router(outcomes_router)  # Phase 5: Outcome Tracking & Learning
+app.include_router(graph_analysis_router)  # Phase 5: Graph Analysis & Refinement
 app.include_router(portfolio_router)  # Phase D1: Portfolio Analytics
 app.include_router(collaboration_router)  # Phase D2: Real-time Collaboration
 app.include_router(dependencies_router)  # Phase D3: Decision Dependencies

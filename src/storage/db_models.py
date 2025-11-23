@@ -512,3 +512,47 @@ class UserDomainExpertiseDB(Base):
     # Last updated
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# Phase 5: Autonomous Learning Models
+
+class DecisionOutcomeDB(Base):
+    """Database model for decision outcomes (Phase 5)."""
+
+    __tablename__ = "decision_outcomes"
+
+    outcome_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(String(100), nullable=False, index=True)
+
+    # Decision details
+    decision = Column(JSON, nullable=False)  # {selected_option, decided_at, decision_graph, key_assumptions}
+
+    # Predictions and actuals
+    predicted_outcomes = Column(JSON, nullable=False)  # List of PredictedOutcomeV1 dicts
+    actual_outcomes = Column(JSON, nullable=True)  # List of ActualOutcomeV1 dicts
+
+    # Status tracking
+    status = Column(String(20), nullable=False, default="predicted", index=True)  # predicted, monitoring, measured, analyzed
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    measured_at = Column(DateTime, nullable=True)
+
+
+class OutcomeMeasurementDB(Base):
+    """Database model for outcome measurements (Phase 5)."""
+
+    __tablename__ = "outcome_measurements"
+
+    measurement_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    outcome_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+
+    # Measurement details
+    metric = Column(String(100), nullable=False, index=True)
+    actual_value = Column(Float, nullable=False)
+    predicted_value = Column(Float, nullable=False)
+    variance = Column(Float, nullable=False)  # Prediction error percentage
+
+    # Metadata
+    notes = Column(String(2000), nullable=True)
+    measured_at = Column(DateTime, default=datetime.utcnow, nullable=False)
