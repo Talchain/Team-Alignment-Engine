@@ -30,6 +30,7 @@ from src.api.routes import (
     consensus_router,
     deliberation_router,
     preferences_router,
+    onboarding_router,
 )
 from src.api.metrics import MetricsMiddleware, metrics_endpoint
 from src.storage import init_db, init_cache
@@ -81,6 +82,7 @@ app.include_router(phase_c_router)  # Phase C: Intelligent Assistance
 app.include_router(consensus_router)  # Consensus Builder (Habermas Machine)
 app.include_router(deliberation_router)  # Multi-Round Deliberation (Phase 1A/1B)
 app.include_router(preferences_router)  # Preference Elicitation (Phase 2A: ActiVA)
+app.include_router(onboarding_router)  # Onboarding (Phase 2B: Bayesian Teaching)
 app.include_router(portfolio_router)  # Phase D1: Portfolio Analytics
 app.include_router(collaboration_router)  # Phase D2: Real-time Collaboration
 app.include_router(dependencies_router)  # Phase D3: Decision Dependencies
