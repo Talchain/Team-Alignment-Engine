@@ -443,6 +443,30 @@ conflict_resolution_duration_seconds = Histogram(
     buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
 )
 
+# Consensus Builder (Habermas Machine) Metrics
+consensus_requests_total = Counter(
+    'tae_consensus_requests_total',
+    'Total consensus builder requests',
+    ['num_perspectives']  # 2, 3-5, 6-10
+)
+
+consensus_warnings_total = Counter(
+    'tae_consensus_warnings_total',
+    'Total consensus warnings generated',
+    ['warning_type']  # minority_has_strong_evidence, forced_compromise, weak_causal_backing
+)
+
+consensus_synthesis_options_generated_total = Counter(
+    'tae_consensus_synthesis_options_generated_total',
+    'Total synthesis options generated'
+)
+
+consensus_conflicts_detected_total = Counter(
+    'tae_consensus_conflicts_detected_total',
+    'Total conflicts detected',
+    ['conflict_type']  # causal, values, framing, mixed
+)
+
 # PLoT Integration
 plot_requests_total = Counter(
     'tae_plot_requests_total',
