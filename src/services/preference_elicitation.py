@@ -29,8 +29,13 @@ class PreferenceElicitationService:
 
         Args:
             llm_client: LLM client for scenario generation
+
+        Note:
+            In production, llm_client should always be provided via dependency
+            injection to ensure proper resource cleanup. The fallback is for
+            testing only and may leak resources.
         """
-        self.llm_client = llm_client or LLMClient()
+        self.llm_client = llm_client or LLMClient()  # Fallback for tests only
 
         # In-memory storage (in production, use database)
         self.sessions: Dict[str, PreferenceElicitationSessionV1] = {}

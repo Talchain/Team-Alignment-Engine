@@ -408,9 +408,14 @@ class ConsensusBuilder:
         Args:
             isl_client: ISL client for causal validation
             llm_client: LLM client for synthesis generation (optional)
+
+        Note:
+            In production, llm_client should always be provided via dependency
+            injection to ensure proper resource cleanup. The fallback is for
+            testing only and may leak resources.
         """
         self.isl_client = isl_client
-        self.llm_client = llm_client or LLMClient()
+        self.llm_client = llm_client or LLMClient()  # Fallback for tests only
         self.quality_scorer = CausalQualityScorer(isl_client)
 
     async def build_consensus(

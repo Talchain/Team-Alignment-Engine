@@ -37,8 +37,13 @@ class ConflictDiagnosisService:
 
         Args:
             llm_client: LLM client for generating tests and reframings
+
+        Note:
+            In production, llm_client should always be provided via dependency
+            injection to ensure proper resource cleanup. The fallback is for
+            testing only and may leak resources.
         """
-        self.llm_client = llm_client or LLMClient()
+        self.llm_client = llm_client or LLMClient()  # Fallback for tests only
 
     async def suggest_decisive_test(
         self,

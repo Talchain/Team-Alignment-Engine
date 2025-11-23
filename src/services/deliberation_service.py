@@ -52,11 +52,16 @@ class DeliberationService:
             consensus_builder: Consensus builder for synthesis
             facet_client: FACET client for robustness analysis
             encryption_service: Encryption service for anonymous voting
+
+        Note:
+            In production, consensus_builder should always be provided via
+            dependency injection with managed LLMClient. The fallback is for
+            testing only and may leak resources.
         """
         self.repository = repository
         self.consensus_builder = consensus_builder or ConsensusBuilder(
             isl_client=ISLClient(),
-            llm_client=LLMClient(),
+            llm_client=LLMClient(),  # Fallback for tests only
         )
         self.facet_client = facet_client or FACETClient(use_mock=True)
         self.encryption_service = encryption_service or get_encryption_service()

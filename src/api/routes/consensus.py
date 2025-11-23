@@ -40,9 +40,10 @@ def get_isl_client() -> ISLClient:
     return ISLClient()
 
 
-def get_llm_client() -> LLMClient:
-    """Get LLM client instance."""
-    return LLMClient()
+async def get_llm_client():
+    """Get LLM client instance with proper resource cleanup."""
+    async with LLMClient() as client:
+        yield client
 
 
 def get_consensus_builder(

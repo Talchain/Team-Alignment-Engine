@@ -15,7 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 class LLMClient:
-    """Client for LLM-powered synthesis generation."""
+    """Client for LLM-powered synthesis generation.
+
+    Usage:
+        async with LLMClient() as client:
+            result = await client.generate_synthesis_options(...)
+    """
 
     def __init__(
         self,
@@ -33,7 +38,18 @@ class LLMClient:
         self.api_key = api_key or getattr(settings, "openai_api_key", None)
         self.model = model
         self.timeout = timeout
-        self.client = httpx.AsyncClient(timeout=timeout)
+        self.client: Optional[httpx.AsyncClient] = None
+
+    async def __aenter__(self):
+        """Enter async context manager - create HTTP client."""
+        self.client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit async context manager - close HTTP client."""
+        if self.client:
+            await self.client.aclose()
+        return False
 
     async def generate_synthesis_options(
         self,
@@ -162,7 +178,11 @@ Generate {num_options} creative synthesis options now:
 
         Raises:
             httpx.HTTPError: If API call fails
+            RuntimeError: If client is not initialized (use as context manager)
         """
+        if not self.client:
+            raise RuntimeError("LLMClient must be used as async context manager")
+
         if not self.api_key:
             logger.warning("No OpenAI API key configured, using mock response")
             return self._mock_llm_response()

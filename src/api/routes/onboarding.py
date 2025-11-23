@@ -3,6 +3,8 @@
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends
 
+from src.auth.dependencies import get_current_user
+from src.auth.models import User
 from src.models.onboarding import (
     StartOnboardingRequestV1,
     StartOnboardingResponseV1,
@@ -25,6 +27,7 @@ def get_onboarding_service() -> OnboardingService:
 @router.post("/start", response_model=StartOnboardingResponseV1, status_code=status.HTTP_201_CREATED)
 async def start_onboarding(
     request_body: StartOnboardingRequestV1,
+    current_user: User = Depends(get_current_user),
     service: OnboardingService = Depends(get_onboarding_service),
 ) -> StartOnboardingResponseV1:
     """Start onboarding session."""
@@ -51,6 +54,7 @@ async def start_onboarding(
 async def submit_onboarding_response(
     session_id: str,
     request_body: SubmitOnboardingResponseRequestV1,
+    current_user: User = Depends(get_current_user),
     service: OnboardingService = Depends(get_onboarding_service),
 ) -> SubmitOnboardingResponseResponseV1:
     """Submit onboarding response."""
@@ -96,6 +100,7 @@ async def submit_onboarding_response(
 async def get_onboarding_profile(
     session_id: str,
     user_id: str,
+    current_user: User = Depends(get_current_user),
     service: OnboardingService = Depends(get_onboarding_service),
 ) -> GetOnboardingProfileResponseV1:
     """Get onboarding profile."""

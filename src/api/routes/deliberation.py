@@ -12,6 +12,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.storage.database import get_db
+from src.auth.dependencies import get_current_user
+from src.auth.models import User
 
 from src.models.deliberation import (
     StartDeliberationRequestV1,
@@ -46,18 +48,33 @@ router = APIRouter(prefix="/api/v1/deliberation", tags=["deliberation"])
 
 async def get_deliberation_service(
     db: AsyncSession = Depends(get_db),
-) -> DeliberationService:
-    """Get deliberation service instance with database session.
+):
+    """Get deliberation service instance with database session and managed resources.
 
     Args:
         db: Database session
 
-    Returns:
-        DeliberationService instance
+    Yields:
+        DeliberationService instance with properly managed LLMClient
     """
     from src.storage.deliberation_repository import DeliberationRepository
+    from src.services.consensus_builder import ConsensusBuilder
+    from src.clients.isl_client import ISLClient
+    from src.clients.llm_client import LLMClient
+
     repository = DeliberationRepository(db)
-    return DeliberationService(repository=repository)
+
+    # Create managed LLMClient with proper cleanup
+    async with LLMClient() as llm_client:
+        consensus_builder = ConsensusBuilder(
+            isl_client=ISLClient(),
+            llm_client=llm_client,
+        )
+        service = DeliberationService(
+            repository=repository,
+            consensus_builder=consensus_builder,
+        )
+        yield service
 
 
 # ============================================================================
@@ -94,6 +111,7 @@ Start a multi-round deliberation session for team decision-making.
 async def start_deliberation(
     request_body: StartDeliberationRequestV1,
     http_request: Request,
+    current_user: User = Depends(get_current_user),
     service: DeliberationService = Depends(get_deliberation_service),
 ) -> StartDeliberationResponseV1:
     """Start a new deliberation session.
@@ -154,6 +172,7 @@ async def start_deliberation(
 async def submit_input(
     session_id: str,
     request_body: SubmitInputRequestV1,
+    current_user: User = Depends(get_current_user),
     service: DeliberationService = Depends(get_deliberation_service),
 ) -> SubmitInputResponseV1:
     """Submit causal graph + reasoning for a submission round.
@@ -214,6 +233,7 @@ Submit anonymous vote for synthesis options.
 async def submit_vote(
     session_id: str,
     request_body: SubmitVoteRequestV1,
+    current_user: User = Depends(get_current_user),
     service: DeliberationService = Depends(get_deliberation_service),
 ) -> SubmitVoteResponseV1:
     """Submit vote in a voting round.
@@ -289,6 +309,7 @@ Advance deliberation to next round.
 async def advance_round(
     session_id: str,
     request_body: AdvanceRoundRequestV1,
+    current_user: User = Depends(get_current_user),
     service: DeliberationService = Depends(get_deliberation_service),
 ) -> AdvanceRoundResponseV1:
     """Advance to next round.
@@ -340,6 +361,7 @@ async def advance_round(
 )
 async def get_session_status(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     service: DeliberationService = Depends(get_deliberation_service),
 ) -> DeliberationStatusResponseV1:
     """Get current deliberation session status.
@@ -418,6 +440,7 @@ Get complete deliberation history for audit trail.
 )
 async def get_session_history(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     service: DeliberationService = Depends(get_deliberation_service),
 ) -> DeliberationHistoryResponseV1:
     """Get complete deliberation history.
@@ -533,6 +556,7 @@ async def get_session_history(
 )
 async def session_health(
     session_id: str,
+    current_user: User = Depends(get_current_user),
     service: DeliberationService = Depends(get_deliberation_service),
 ) -> JSONResponse:
     """Check if session exists and is healthy.

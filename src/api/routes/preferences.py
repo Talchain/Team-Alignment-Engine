@@ -29,9 +29,14 @@ router = APIRouter(prefix="/api/v1/preferences", tags=["preferences"])
 # ============================================================================
 
 
-def get_preference_service() -> PreferenceElicitationService:
-    """Get preference elicitation service instance."""
-    return PreferenceElicitationService()
+async def get_preference_service():
+    """Get preference elicitation service instance with managed resources."""
+    from src.clients.llm_client import LLMClient
+
+    # Create managed LLMClient with proper cleanup
+    async with LLMClient() as llm_client:
+        service = PreferenceElicitationService(llm_client=llm_client)
+        yield service
 
 
 # ============================================================================
@@ -227,6 +232,7 @@ Get current value model for a session.
 async def get_value_model(
     session_id: str,
     user_id: str,
+    current_user: User = Depends(get_current_user),
     service: PreferenceElicitationService = Depends(get_preference_service),
 ) -> GetValueModelResponseV1:
     """Get current value model.
