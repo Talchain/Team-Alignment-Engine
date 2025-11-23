@@ -16,6 +16,7 @@ from src.api.routes.coordination import router as coordination_router
 from src.api.routes.analytics import router as advanced_analytics_router
 from src.api.routes.plot_orchestration import router as plot_orchestration_router
 from src.api.routes.consensus import router as consensus_router
+from src.api.routes.deliberation import router as deliberation_router
 
 __all__ = [
     "health_router",
@@ -34,4 +35,5 @@ __all__ = [
     "advanced_analytics_router",
     "plot_orchestration_router",
     "consensus_router",
+    "deliberation_router",
 ]

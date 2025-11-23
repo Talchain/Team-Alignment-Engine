@@ -467,6 +467,52 @@ consensus_conflicts_detected_total = Counter(
     ['conflict_type']  # causal, values, framing, mixed
 )
 
+# Deliberation System (Phase 1A/1B) Metrics
+deliberation_sessions_total = Counter(
+    'tae_deliberation_sessions_total',
+    'Total deliberation sessions started',
+    ['num_participants']  # 2-5, 6-10, 11-20
+)
+
+deliberation_rounds_per_session = Histogram(
+    'tae_deliberation_rounds_per_session',
+    'Number of rounds per deliberation session',
+    buckets=(1, 2, 3, 4, 5, 7, 10, 15, 20)
+)
+
+deliberation_convergence_rate = Gauge(
+    'tae_deliberation_convergence_rate',
+    'Percentage of sessions that converged (vs. max rounds)'
+)
+
+deliberation_minority_protections_triggered = Counter(
+    'tae_deliberation_minority_protections_triggered',
+    'Total times minority protection prevented premature consensus'
+)
+
+deliberation_vote_agreement_level = Histogram(
+    'tae_deliberation_vote_agreement_level',
+    'Agreement level in voting rounds',
+    buckets=(0.0, 0.2, 0.4, 0.6, 0.8, 0.9, 1.0)
+)
+
+deliberation_quality_score = Histogram(
+    'tae_deliberation_quality_score',
+    'Convergence quality scores',
+    buckets=(0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0)
+)
+
+facet_robustness_calls_total = Counter(
+    'tae_facet_robustness_calls_total',
+    'Total FACET robustness analysis calls'
+)
+
+facet_robustness_score = Histogram(
+    'tae_facet_robustness_score',
+    'FACET counterfactual robustness scores',
+    buckets=(0.0, 0.2, 0.4, 0.6, 0.8, 0.9, 1.0)
+)
+
 # PLoT Integration
 plot_requests_total = Counter(
     'tae_plot_requests_total',
