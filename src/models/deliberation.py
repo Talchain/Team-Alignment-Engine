@@ -124,6 +124,7 @@ class DeliberationRoundV1(BaseModel):
     """Single round in a deliberation session."""
 
     round_id: str = Field(default_factory=lambda: f"round-{uuid4()}", description="Unique round ID")
+    session_id: str = Field(..., description="Session this round belongs to")
     round_number: int = Field(..., ge=1, description="Round number (1-indexed)")
     round_type: Literal["submission", "synthesis", "voting", "refinement"] = Field(
         ..., description="Type of round"

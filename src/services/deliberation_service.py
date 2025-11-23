@@ -4,9 +4,7 @@ Orchestrates iterative deliberation with anonymous voting and convergence detect
 """
 
 import logging
-import hashlib
-import base64
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from datetime import datetime
 from collections import defaultdict
 
@@ -29,6 +27,7 @@ from src.models.consensus import (
     SynthesisOptionV1,
 )
 from src.services.consensus_builder import ConsensusBuilder
+from src.services.encryption import get_encryption_service, VotingEncryptionService
 from src.clients.isl_client import ISLClient
 from src.clients.llm_client import LLMClient
 from src.clients.facet_client import FACETClient
@@ -36,31 +35,33 @@ from src.clients.facet_client import FACETClient
 logger = logging.getLogger(__name__)
 
 
-# Encryption key for anonymous voting (in production, use proper key management)
-VOTING_ENCRYPTION_KEY = b"tae-voting-secret-key-change-in-production"
-
-
 class DeliberationService:
     """Service for managing multi-round deliberation sessions."""
 
     def __init__(
         self,
+        repository: Optional[Any] = None,
         consensus_builder: Optional[ConsensusBuilder] = None,
         facet_client: Optional[FACETClient] = None,
+        encryption_service: Optional[VotingEncryptionService] = None,
     ):
         """Initialize deliberation service.
 
         Args:
+            repository: Database repository for persistence
             consensus_builder: Consensus builder for synthesis
             facet_client: FACET client for robustness analysis
+            encryption_service: Encryption service for anonymous voting
         """
+        self.repository = repository
         self.consensus_builder = consensus_builder or ConsensusBuilder(
             isl_client=ISLClient(),
             llm_client=LLMClient(),
         )
         self.facet_client = facet_client or FACETClient(use_mock=True)
+        self.encryption_service = encryption_service or get_encryption_service()
 
-        # In-memory storage (in production, use database)
+        # In-memory fallback for testing (when repository is None)
         self.sessions: Dict[str, DeliberationSessionV1] = {}
 
     async def start_session(
@@ -95,6 +96,7 @@ class DeliberationService:
 
         # Create first round (submission)
         first_round = DeliberationRoundV1(
+            session_id=session.session_id,
             round_number=1,
             round_type="submission",
             submissions=[],
@@ -102,8 +104,12 @@ class DeliberationService:
 
         session.rounds.append(first_round)
 
-        # Store session
-        self.sessions[session.session_id] = session
+        # Store session (database or in-memory)
+        if self.repository:
+            await self.repository.create_session(session)
+            await self.repository.create_round(first_round)
+        else:
+            self.sessions[session.session_id] = session
 
         logger.info(f"Session {session.session_id} started with round {first_round.round_id}")
 
@@ -129,7 +135,12 @@ class DeliberationService:
         Returns:
             Tuple of (accepted, validation_result)
         """
-        session = self.sessions.get(session_id)
+        # Get session (database or in-memory)
+        if self.repository:
+            session = await self.repository.get_session(session_id)
+        else:
+            session = self.sessions.get(session_id)
+
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
@@ -159,10 +170,19 @@ class DeliberationService:
         # Validate with consensus builder quality scorer
         quality = await self.consensus_builder.quality_scorer.score_team_input(team_input)
 
-        # Add to round
-        if current_round.submissions is None:
-            current_round.submissions = []
-        current_round.submissions.append(team_input)
+        # Add to round (database or in-memory)
+        if self.repository:
+            await self.repository.create_submission(
+                submission=team_input,
+                session_id=session_id,
+                round_id=round_id,
+                causal_quality=quality,
+                validation_issues=quality.validation_issues,
+            )
+        else:
+            if current_round.submissions is None:
+                current_round.submissions = []
+            current_round.submissions.append(team_input)
 
         logger.info(
             f"Input submitted by {user_id} in round {round_id}",
@@ -194,7 +214,12 @@ class DeliberationService:
         Returns:
             Tuple of (accepted, vote_info)
         """
-        session = self.sessions.get(session_id)
+        # Get session (database or in-memory)
+        if self.repository:
+            session = await self.repository.get_session(session_id)
+        else:
+            session = self.sessions.get(session_id)
+
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
@@ -207,15 +232,25 @@ class DeliberationService:
 
         # Encrypt user ID for anonymity
         encrypted_user_id = self._encrypt_user_id(user_id)
-        vote.user_id = encrypted_user_id
 
-        # Add vote
-        if current_round.votes is None:
-            current_round.votes = []
-        current_round.votes.append(vote)
+        # Add vote (database or in-memory)
+        vote_id = vote.vote_id if hasattr(vote, 'vote_id') else None
+        if self.repository:
+            vote_id = await self.repository.create_vote(
+                vote=vote,
+                session_id=session_id,
+                encrypted_user_id=encrypted_user_id,
+            )
+            # Get updated vote count from database
+            votes = await self.repository.get_votes_for_round(round_id, reveal_user_ids=False)
+            total_votes = len(votes)
+        else:
+            vote.user_id = encrypted_user_id
+            if current_round.votes is None:
+                current_round.votes = []
+            current_round.votes.append(vote)
+            total_votes = len(current_round.votes)
 
-        # Count votes
-        total_votes = len(current_round.votes)
         awaiting = len(session.participants) - total_votes
 
         logger.info(
@@ -224,7 +259,7 @@ class DeliberationService:
         )
 
         return True, {
-            "vote_id": vote.vote_id,
+            "vote_id": vote_id or vote.vote_id,
             "vote_count": total_votes,
             "awaiting_votes_from": awaiting,
         }
@@ -243,7 +278,12 @@ class DeliberationService:
         Returns:
             Tuple of (next_round, convergence_status, session_complete)
         """
-        session = self.sessions.get(session_id)
+        # Get session (database or in-memory)
+        if self.repository:
+            session = await self.repository.get_session(session_id)
+        else:
+            session = self.sessions.get(session_id)
+
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
@@ -253,6 +293,9 @@ class DeliberationService:
 
         # Mark current round as complete
         current_round.completed_at = datetime.utcnow().isoformat() + "Z"
+
+        if self.repository:
+            await self.repository.complete_round(current_round.round_id)
 
         logger.info(
             f"Advancing from round {current_round.round_number} ({current_round.round_type})",
@@ -284,6 +327,7 @@ class DeliberationService:
             else:
                 # Continue with new submission round
                 next_round = DeliberationRoundV1(
+                    session_id=session.session_id,
                     round_number=current_round.round_number + 1,
                     round_type="submission",
                     submissions=[],
@@ -291,11 +335,19 @@ class DeliberationService:
 
             current_round.convergence_status = convergence
 
+            if self.repository:
+                await self.repository.update_round_convergence_status(
+                    current_round.round_id, convergence
+                )
+
         else:
             raise ValueError(f"Unknown round type: {current_round.round_type}")
 
-        # Add next round to session
-        session.rounds.append(next_round)
+        # Add next round to session (database or in-memory)
+        if self.repository:
+            await self.repository.create_round(next_round)
+        else:
+            session.rounds.append(next_round)
 
         logger.info(
             f"Created next round: {next_round.round_number} ({next_round.round_type})",
@@ -337,6 +389,7 @@ class DeliberationService:
 
         # Create synthesis round
         synthesis_round = DeliberationRoundV1(
+            session_id=session.session_id,
             round_number=submission_round.round_number + 1,
             round_type="synthesis",
             synthesis_options=consensus_response.synthesis_options,
@@ -367,6 +420,7 @@ class DeliberationService:
         logger.info("Creating voting round")
 
         voting_round = DeliberationRoundV1(
+            session_id=session.session_id,
             round_number=synthesis_round.round_number + 1,
             round_type="voting",
             votes=[],
@@ -391,6 +445,7 @@ class DeliberationService:
         logger.info("Creating refinement round for conflict resolution")
 
         refinement_round = DeliberationRoundV1(
+            session_id=session.session_id,
             round_number=voting_round.round_number + 1,
             round_type="refinement",
             submissions=[],
@@ -531,14 +586,23 @@ class DeliberationService:
         )
 
         # Create final outcome
-        session.final_outcome = FinalOutcomeV1(
+        final_outcome = FinalOutcomeV1(
             selected_option=top_option,
             consensus_level=convergence.metrics.agreement_level,
             quality_score=convergence.quality_score,
             converged_at=datetime.utcnow().isoformat() + "Z",
         )
 
+        session.final_outcome = final_outcome
         session.status = "converged"
+
+        # Persist finalization (database or in-memory)
+        if self.repository:
+            await self.repository.update_session_status(
+                session.session_id,
+                status="converged",
+                final_outcome=final_outcome,
+            )
 
         logger.info(
             f"Session converged with quality score {convergence.quality_score:.2f}",
@@ -665,38 +729,26 @@ class DeliberationService:
         return round(sum(scores) / len(scores), 2)
 
     def _encrypt_user_id(self, user_id: str) -> str:
-        """Encrypt user ID for anonymous voting.
-
-        Uses deterministic encryption (same input → same output).
+        """Encrypt user ID for anonymous voting using AES-256-GCM.
 
         Args:
             user_id: Plain user ID
 
         Returns:
-            Encrypted user ID
+            Encrypted user ID (base64-encoded)
         """
-        # Use HMAC for deterministic encryption
-        h = hashlib.sha256()
-        h.update(VOTING_ENCRYPTION_KEY)
-        h.update(user_id.encode('utf-8'))
-
-        encrypted = base64.b64encode(h.digest()).decode('utf-8')
-        return f"encrypted-{encrypted[:16]}"
+        return self.encryption_service.encrypt_user_id(user_id)
 
     def _decrypt_user_id(self, encrypted_user_id: str) -> str:
-        """Decrypt user ID after voting round closes.
-
-        Note: This is a simplified implementation. In production,
-        use proper reversible encryption with key management.
+        """Decrypt user ID after voting round closes using AES-256-GCM.
 
         Args:
             encrypted_user_id: Encrypted user ID
 
         Returns:
-            Decrypted user ID (or encrypted if cannot decrypt)
-        """
-        # In this simplified version, we cannot reverse the hash
-        # In production, use symmetric encryption (AES) with proper key management
+            Decrypted user ID
 
-        # For testing, just return the encrypted ID with marker
-        return encrypted_user_id.replace("encrypted-", "decrypted-")
+        Raises:
+            ValueError: If decryption fails
+        """
+        return self.encryption_service.decrypt_user_id(encrypted_user_id)

@@ -340,8 +340,120 @@ class AnalyticsCacheDB(Base):
     analysis_type = Column(String(50), nullable=False, index=True)  # trend, benchmark
     metric_name = Column(String(100), nullable=True)
     decision_type = Column(String(100), nullable=True)
-    
+
     result_data = Column(JSON, nullable=False)
-    
+
     generated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False, index=True)
+
+
+# Phase 1A/1B: Multi-Round Deliberation Models
+
+class DeliberationSessionDB(Base):
+    """Database model for deliberation sessions (Phase 1A/1B)."""
+
+    __tablename__ = "deliberation_sessions"
+
+    session_id = Column(String(100), primary_key=True)
+    decision_context = Column(String(1000), nullable=False)
+    participants = Column(JSON, nullable=False)  # List of ParticipantV1 dicts
+    status = Column(String(50), nullable=False, default="active")  # active, converged, abandoned
+
+    # Convergence criteria
+    convergence_criteria = Column(JSON, nullable=False)
+
+    # Final outcome (when converged)
+    final_outcome = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class DeliberationRoundDB(Base):
+    """Database model for deliberation rounds (Phase 1A/1B)."""
+
+    __tablename__ = "deliberation_rounds"
+
+    round_id = Column(String(100), primary_key=True)
+    session_id = Column(String(100), nullable=False, index=True)
+    round_number = Column(Integer, nullable=False)
+    round_type = Column(String(50), nullable=False)  # submission, synthesis, voting, refinement
+
+    # Round metadata
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+
+    # Synthesis options (for synthesis/voting rounds)
+    synthesis_options = Column(JSON, nullable=True)
+
+    # Convergence status (computed after voting)
+    convergence_status = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class DeliberationSubmissionDB(Base):
+    """Database model for deliberation submissions (Phase 1A/1B)."""
+
+    __tablename__ = "deliberation_submissions"
+
+    submission_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    round_id = Column(String(100), nullable=False, index=True)
+    session_id = Column(String(100), nullable=False, index=True)
+    user_id = Column(String(100), nullable=False)
+
+    # Input data
+    graph = Column(JSON, nullable=False)  # GraphV1 dict
+    reasoning = Column(String(2000), nullable=False)
+
+    # Validation results
+    causal_quality = Column(JSON, nullable=False)  # CausalQualityV1 dict
+    validation_issues = Column(JSON, nullable=False)  # List of validation issues
+
+    # Evidence items extracted from this submission
+    evidence_items = Column(JSON, nullable=True)  # List of EvidenceItemV1 dicts
+    unsupported_claims = Column(JSON, nullable=True)  # List of warnings
+
+    submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class DeliberationVoteDB(Base):
+    """Database model for deliberation votes (Phase 1A/1B)."""
+
+    __tablename__ = "deliberation_votes"
+
+    vote_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    round_id = Column(String(100), nullable=False, index=True)
+    session_id = Column(String(100), nullable=False, index=True)
+
+    # Encrypted user ID (for anonymity during active voting)
+    encrypted_user_id = Column(String(200), nullable=False)
+
+    # Actual user ID (only revealed after round closes)
+    user_id = Column(String(100), nullable=True)
+
+    # Vote data
+    rankings = Column(JSON, nullable=False)  # List of RankingV1 dicts
+
+    submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class DeliberationConflictDB(Base):
+    """Database model for deliberation conflicts (Phase 1A/1B)."""
+
+    __tablename__ = "deliberation_conflicts"
+
+    conflict_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(String(100), nullable=False, index=True)
+    round_id = Column(String(100), nullable=False, index=True)
+
+    # Conflict data
+    conflict_analysis = Column(JSON, nullable=False)  # ConflictAnalysisV1 dict
+
+    # Enhanced conflict diagnosis
+    decisive_test = Column(JSON, nullable=True)  # DecisiveTestV1 dict
+    pareto_analysis = Column(JSON, nullable=True)  # ParetoAnalysisV1 dict
+    reframing_analysis = Column(JSON, nullable=True)  # ReframingAnalysisV1 dict
+
+    detected_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)

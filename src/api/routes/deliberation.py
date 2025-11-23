@@ -9,6 +9,9 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.storage.database import get_db
 
 from src.models.deliberation import (
     StartDeliberationRequestV1,
@@ -41,9 +44,20 @@ router = APIRouter(prefix="/api/v1/deliberation", tags=["deliberation"])
 # ============================================================================
 
 
-def get_deliberation_service() -> DeliberationService:
-    """Get deliberation service instance."""
-    return DeliberationService()
+async def get_deliberation_service(
+    db: AsyncSession = Depends(get_db),
+) -> DeliberationService:
+    """Get deliberation service instance with database session.
+
+    Args:
+        db: Database session
+
+    Returns:
+        DeliberationService instance
+    """
+    from src.storage.deliberation_repository import DeliberationRepository
+    repository = DeliberationRepository(db)
+    return DeliberationService(repository=repository)
 
 
 # ============================================================================
