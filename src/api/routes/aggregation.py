@@ -3,6 +3,8 @@
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends
 
+from src.auth.dependencies import get_current_user
+from src.auth.models import User
 from src.models.aggregation import (
     AggregationAnalysisRequestV1,
     AggregationAnalysisResponseV1,
@@ -30,6 +32,7 @@ def get_deliberation_service() -> DeliberationService:
 @router.post("/analyze", response_model=AggregationAnalysisResponseV1)
 async def analyze_aggregation(
     request_body: AggregationAnalysisRequestV1,
+    current_user: User = Depends(get_current_user),
     agg_service: AggregationIntelligenceService = Depends(get_aggregation_service),
     delib_service: DeliberationService = Depends(get_deliberation_service),
 ) -> AggregationAnalysisResponseV1:
@@ -98,6 +101,7 @@ async def analyze_aggregation(
 @router.post("/synthesize", response_model=SmartSynthesisResponseV1)
 async def smart_synthesis(
     request_body: SmartSynthesisRequestV1,
+    current_user: User = Depends(get_current_user),
     agg_service: AggregationIntelligenceService = Depends(get_aggregation_service),
     delib_service: DeliberationService = Depends(get_deliberation_service),
 ) -> SmartSynthesisResponseV1:

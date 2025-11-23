@@ -8,6 +8,8 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, status, Depends
 
+from src.auth.dependencies import get_current_user
+from src.auth.models import User
 from src.models.preferences import (
     StartPreferenceElicitationRequestV1,
     StartPreferenceElicitationResponseV1,
@@ -63,6 +65,7 @@ Start value elicitation session using counterfactual scenarios.
 )
 async def start_preference_elicitation(
     request_body: StartPreferenceElicitationRequestV1,
+    current_user: User = Depends(get_current_user),
     service: PreferenceElicitationService = Depends(get_preference_service),
 ) -> StartPreferenceElicitationResponseV1:
     """Start new preference elicitation session.
@@ -128,6 +131,7 @@ Submit response to a counterfactual scenario.
 async def submit_preference_response(
     session_id: str,
     request_body: SubmitPreferenceResponseRequestV1,
+    current_user: User = Depends(get_current_user),
     service: PreferenceElicitationService = Depends(get_preference_service),
 ) -> SubmitPreferenceResponseResponseV1:
     """Submit preference response.
