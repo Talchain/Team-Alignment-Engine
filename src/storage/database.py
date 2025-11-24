@@ -11,11 +11,14 @@ from src.config import settings
 logger = logging.getLogger(__name__)
 
 # Create async engine
+# SECURITY: echo=False to prevent sensitive data in logs
+# Use SQLAlchemy event listeners for controlled query logging if needed
 engine = create_async_engine(
     settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
-    echo=settings.environment == "development",
+    echo=False,  # Disabled to prevent sensitive data logging
     pool_size=settings.database_pool_size,
     max_overflow=settings.database_max_overflow,
+    pool_pre_ping=True,  # Verify connections before use
 )
 
 # Create async session factory

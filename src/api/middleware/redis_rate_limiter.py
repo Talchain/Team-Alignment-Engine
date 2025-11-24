@@ -7,6 +7,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from typing import Optional
+from jose import jwt, JWTError
 
 from src.config import settings
 from src.storage.cache import get_cache
@@ -15,7 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 class RedisRateLimiterMiddleware(BaseHTTPMiddleware):
-    """Redis-backed rate limiter using sliding window algorithm."""
+    """Redis-backed rate limiter using sliding window algorithm.
+
+    PERFORMANCE: Extracts user_id from JWT for per-user rate limiting.
+    Falls back to IP-based limiting for unauthenticated requests.
+    """
 
     def __init__(self, app, requests: int = None, window: int = None):
         """
@@ -30,13 +35,47 @@ class RedisRateLimiterMiddleware(BaseHTTPMiddleware):
         self.max_requests = requests or settings.rate_limit_requests
         self.window = window or settings.rate_limit_window
 
+    def _extract_user_id_from_token(self, request: Request) -> Optional[str]:
+        """
+        Extract user_id from JWT token in Authorization header.
+
+        Args:
+            request: Incoming request
+
+        Returns:
+            User ID if token is valid, None otherwise
+        """
+        try:
+            # Get Authorization header
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return None
+
+            # Extract token
+            token = auth_header.split(" ")[1]
+
+            # Decode JWT (don't verify - we just need user_id for rate limiting)
+            # Verification happens later in auth dependencies
+            payload = jwt.decode(
+                token,
+                settings.jwt_secret,
+                algorithms=[settings.jwt_algorithm],
+                options={"verify_exp": False}  # Don't verify expiration for rate limiting
+            )
+
+            return payload.get("sub")
+
+        except (JWTError, IndexError, AttributeError):
+            # Invalid token format - fall back to IP-based limiting
+            return None
+
     async def dispatch(self, request: Request, call_next):
         """Check rate limit and process request using Redis."""
-        # Get client identifier (IP address or user ID if authenticated)
-        client_ip = request.client.host if request.client else "unknown"
+        # Extract user_id from JWT token for per-user rate limiting
+        user_id = self._extract_user_id_from_token(request)
 
-        # Try to get user ID from auth token for better rate limiting
-        user_id = getattr(request.state, "user_id", None)
+        # Fallback to IP-based limiting for unauthenticated requests
+        client_ip = request.client.host if request.client else "unknown"
         client_key = f"user:{user_id}" if user_id else f"ip:{client_ip}"
 
         # Skip rate limiting for health checks and metrics
