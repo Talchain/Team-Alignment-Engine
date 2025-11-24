@@ -221,12 +221,15 @@ class DeliberationRepository:
     ) -> List[DeliberationRoundV1]:
         """Get all rounds for a session.
 
+        PERFORMANCE: Optimized to avoid N+1 queries by batching related data fetches.
+
         Args:
             session_id: Session ID
 
         Returns:
             List of rounds
         """
+        # Fetch all rounds in one query
         result = await self.db.execute(
             select(DeliberationRoundDB)
             .where(DeliberationRoundDB.session_id == session_id)
@@ -234,11 +237,81 @@ class DeliberationRepository:
         )
         db_rounds = result.scalars().all()
 
+        if not db_rounds:
+            return []
+
+        # Extract round IDs for batch fetching
+        round_ids = [db_round.round_id for db_round in db_rounds]
+
+        # Fetch all submissions for all rounds in ONE query (avoid N+1)
+        submissions_result = await self.db.execute(
+            select(DeliberationSubmissionDB)
+            .where(DeliberationSubmissionDB.round_id.in_(round_ids))
+            .order_by(DeliberationSubmissionDB.submitted_at)
+        )
+        all_submissions = submissions_result.scalars().all()
+
+        # Group submissions by round_id
+        submissions_by_round = {}
+        for sub in all_submissions:
+            if sub.round_id not in submissions_by_round:
+                submissions_by_round[sub.round_id] = []
+            submissions_by_round[sub.round_id].append(
+                TeamInputV1(
+                    user_id=sub.user_id,
+                    graph=GraphV1(**sub.graph),
+                    reasoning=sub.reasoning,
+                    submitted_at=sub.submitted_at,
+                )
+            )
+
+        # Fetch all votes for all rounds in ONE query (avoid N+1)
+        votes_result = await self.db.execute(
+            select(DeliberationVoteDB)
+            .where(DeliberationVoteDB.round_id.in_(round_ids))
+            .order_by(DeliberationVoteDB.submitted_at)
+        )
+        all_votes = votes_result.scalars().all()
+
+        # Group votes by round_id
+        from src.models.deliberation import RankingV1
+
+        votes_by_round = {}
+        for vote in all_votes:
+            if vote.round_id not in votes_by_round:
+                votes_by_round[vote.round_id] = []
+            votes_by_round[vote.round_id].append(
+                VoteV1(
+                    user_id=vote.user_id if vote.user_id else "anonymous",
+                    round_id=vote.round_id,
+                    rankings=[RankingV1(**r) for r in vote.rankings],
+                    submitted_at=vote.submitted_at,
+                )
+            )
+
+        # Assemble rounds with their related data
+        from src.models.deliberation import SynthesisOptionV1
+
         rounds = []
         for db_round in db_rounds:
-            round_obj = await self.get_round(db_round.round_id)
-            if round_obj:
-                rounds.append(round_obj)
+            rounds.append(
+                DeliberationRoundV1(
+                    round_id=db_round.round_id,
+                    session_id=db_round.session_id,
+                    round_number=db_round.round_number,
+                    round_type=db_round.round_type,
+                    started_at=db_round.started_at,
+                    completed_at=db_round.completed_at,
+                    submissions=submissions_by_round.get(db_round.round_id, []),
+                    synthesis_options=[SynthesisOptionV1(**opt) for opt in db_round.synthesis_options]
+                    if db_round.synthesis_options
+                    else None,
+                    votes=votes_by_round.get(db_round.round_id, []),
+                    convergence_status=ConvergenceStatusV1(**db_round.convergence_status)
+                    if db_round.convergence_status
+                    else None,
+                )
+            )
 
         return rounds
 

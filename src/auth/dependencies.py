@@ -46,16 +46,31 @@ async def get_current_user(
         role: str = payload.get("role")
 
         if user_id is None or email is None or role is None:
-            logger.warning("Invalid token payload", extra={"payload": payload})
+            # SECURITY: Only log safe fields, never full payload
+            logger.warning(
+                "Invalid token payload - missing required claims",
+                extra={
+                    "has_sub": user_id is not None,
+                    "has_email": email is not None,
+                    "has_role": role is not None,
+                }
+            )
             raise credentials_exception
 
-        # In a real implementation, you would fetch the user from database
-        # For now, we construct from token claims
+        # TODO: SECURITY - Implement database verification
+        # Current limitation: User is constructed from token claims only
+        # This means:
+        # - No way to revoke tokens (users can't be deactivated)
+        # - No way to update user permissions without new login
+        # - Compromised tokens valid until expiration
+        #
+        # To fix: Add users table and verify user exists and is_active
+        # See: https://github.com/Talchain/Team-Alignment-Engine/issues/XXX
         user = User(
             user_id=UUID(user_id),
             email=email,
             role=role,
-            is_active=True,
+            is_active=True,  # Always true - no DB check
         )
 
         return user

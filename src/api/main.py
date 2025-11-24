@@ -61,8 +61,17 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Request-ID",
+        "X-API-Key",
+        "Accept",
+        "Origin",
+    ],
+    expose_headers=["X-Request-ID"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Add custom middleware

@@ -14,7 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class ISLClient:
-    """Client for ISL service integration."""
+    """Client for ISL service integration.
+
+    Usage:
+        async with ISLClient() as client:
+            validation = await client.validate_option(...)
+    """
 
     def __init__(
         self,
@@ -26,7 +31,18 @@ class ISLClient:
         self.base_url = base_url or settings.isl_base_url
         self.api_key = api_key or settings.isl_api_key
         self.timeout = timeout or settings.isl_timeout
+        self.client: Optional[httpx.AsyncClient] = None
+
+    async def __aenter__(self):
+        """Enter async context manager - create HTTP client."""
         self.client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit async context manager - close HTTP client."""
+        if self.client:
+            await self.client.aclose()
+        return False
 
     async def validate_option(
         self,

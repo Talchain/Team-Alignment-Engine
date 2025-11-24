@@ -21,7 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class FACETClient:
-    """Client for FACET counterfactual robustness analysis."""
+    """Client for FACET counterfactual robustness analysis.
+
+    Usage:
+        async with FACETClient() as client:
+            analysis = await client.analyze_robustness(...)
+    """
 
     def __init__(
         self,
@@ -42,7 +47,18 @@ class FACETClient:
         self.api_key = api_key
         self.timeout = timeout
         self.use_mock = use_mock
-        self.client = httpx.AsyncClient(timeout=timeout)
+        self.client: Optional[httpx.AsyncClient] = None
+
+    async def __aenter__(self):
+        """Enter async context manager - create HTTP client."""
+        self.client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit async context manager - close HTTP client."""
+        if self.client:
+            await self.client.aclose()
+        return False
 
     async def compute_robustness(
         self,

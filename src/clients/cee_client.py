@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 class CEEClient:
-    """Client for CEE service integration."""
+    """Client for CEE service integration.
+
+    Usage:
+        async with CEEClient() as client:
+            profile = await client.extract_profile(...)
+    """
 
     def __init__(
         self,
@@ -25,7 +30,18 @@ class CEEClient:
         self.base_url = base_url or settings.cee_base_url
         self.api_key = api_key or settings.cee_api_key
         self.timeout = timeout or settings.cee_timeout
+        self.client: Optional[httpx.AsyncClient] = None
+
+    async def __aenter__(self):
+        """Enter async context manager - create HTTP client."""
         self.client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit async context manager - close HTTP client."""
+        if self.client:
+            await self.client.aclose()
+        return False
 
     async def extract_profile(
         self,
