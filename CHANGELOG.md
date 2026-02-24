@@ -5,6 +5,102 @@ All notable changes to the Team Alignment Engine will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-01-31
+
+### Added
+
+#### Phase C: Intelligent Assistance
+- AI option generation (C1) - Generate creative options bridging stakeholder disagreements
+- Option synthesis (C2) - Combine elements from multiple options into optimal hybrids
+- Option tuning (C3) - Adjust options to address minority concerns while preserving core value
+- Assumption testing advisor (C4) - Prioritize which assumptions to validate before deciding
+- Decision retrospective (C5) - Compare actual vs predicted outcomes, generate lessons learned
+- Multi-round deliberation (C6) - Reopen sessions when assumptions fail or context changes
+
+#### Phase D: Organizational Intelligence
+- **D1: Portfolio Analytics** - Cross-session decision metrics, health scores, strategic insights
+- **D2: Real-Time Collaboration** - WebSocket-based presence tracking, live action broadcasting (<100ms latency)
+- **D3: Decision Dependencies** - Dependency graph management with circular dependency prevention
+- **D4: Organizational Patterns** - Extract success/failure patterns from historical decisions
+- **D5: Advanced Analytics** - Trend analysis, 30-day forecasting, comparative benchmarking
+- **D6: Cross-Team Coordination** - Multi-team conflict detection, resolution suggestions
+
+#### Phase 5: Autonomous Learning
+- Outcome tracking service - Track decision outcomes with predictions and measurement schedules
+- Pattern learning - Identify reliable causal paths (>70% accuracy), detect unreliable assumptions (>30% violation rate)
+- Causal modelling agent - Generate graph refinement suggestions, validate with ISL, apply approved changes
+- Decision accuracy analysis - Compare predicted vs actual outcomes, generate accuracy grades
+- Learning insights API - Extract patterns by decision archetype with success factors
+
+#### New Services (31 total)
+- `AIOptionGenerator`, `OptionSynthesizer`, `OptionTuner` (Phase C)
+- `AssumptionTestingAdvisor`, `DecisionRetrospectiveService`, `SessionReopener` (Phase C)
+- `DeliberationService` - Multi-round deliberation with anonymous voting (Phases 1A/1B)
+- `PreferenceElicitationService` - ActiVA counterfactual scenarios (Phase 2A)
+- `OnboardingService` - Bayesian teaching questions (Phase 2B)
+- `AggregationIntelligenceService` - Navajas aggregation with confidence calibration (Phase 3)
+- `ConsensusBuilder` - Habermas Machine consensus synthesis
+- `PortfolioAnalyzer`, `AdvancedAnalyticsEngine`, `PatternAnalyzer` (Phase D)
+- `CollaborationManager`, `CrossTeamCoordinator`, `DecisionDependencyManager` (Phase D)
+- `OutcomeTrackingService`, `DecisionPatternLearner`, `CausalModellingAgent` (Phase 5)
+
+#### New API Endpoints (45 additional, 60+ total)
+- Phase C: `/sessions/{id}/generate-options`, `/synthesize-options`, `/tune-option`, `/test-recommendations`, `/retrospective`, `/reopen`
+- Deliberation: `/deliberation/start`, `/{id}/submit`, `/{id}/vote`, `/{id}/advance`, `/{id}/status`, `/{id}/history`
+- Preferences: `/preferences/start`, `/{id}/respond`, `/{id}/model`
+- Onboarding: `/onboarding/start`, `/{id}/respond`, `/{id}/profile`
+- Aggregation: `/aggregation/analyze`, `/aggregation/synthesize`
+- Consensus: `/consensus/consensus-builder`, `/consensus-builder/health`
+- Portfolio: `/portfolio/analytics`, `/portfolio/health-score`
+- Collaboration: `/collaboration/ws/{id}` (WebSocket), `/{id}/state`, `/{id}/presence`, `/{id}/broadcast`, `/{id}/active-users`
+- Dependencies: `/dependencies` (POST), `/{id}` (DELETE), `/{id}/resolve`, `/session/{id}`, `/session/{id}/blocking`, `/session/{id}/dependents`, `/graph`
+- Patterns: `/patterns/organization/{id}`
+- Analytics: `/advanced-analytics/trends`, `/advanced-analytics/benchmarks`
+- Coordination: `/coordination/groups`, `/detect-conflicts`, `/view`, `/conflicts/{id}/resolve`
+- Outcomes: `/outcomes/track`, `/outcomes/record`, `/outcomes/{id}/analyze`, `/outcomes/session/{id}`, `/learning/insights`
+- Graph Analysis: `/graph-analysis/analyze`, `/graph-analysis/apply-suggestions`
+- PLoT Orchestration: `/plot-orchestration/alignment-session` (internal, API key required)
+
+#### New Database Tables (14 additional, 23 total)
+- `deliberation_sessions`, `deliberation_rounds`, `deliberation_submissions`, `deliberation_votes`, `deliberation_conflicts` (Phase 1)
+- `user_accuracy_history`, `user_domain_expertise` (Phase 3)
+- `decision_dependencies`, `pattern_analysis_cache`, `coordination_groups`, `detected_conflicts`, `analytics_cache` (Phase D)
+- `decision_outcomes`, `outcome_measurements` (Phase 5)
+
+#### Security & Performance Improvements
+- Fixed 4 critical security vulnerabilities (hardcoded secrets, CORS wildcards, WebSocket auth, sensitive logging)
+- Fixed N+1 query problem in deliberation (40+ queries → 3 queries, 13x speedup)
+- Fixed HTTP client resource leaks (CEE, ISL, FACET clients - added async context managers)
+- Added 11 performance indexes for common query patterns
+- Rate limiting enhanced with per-user JWT extraction (falls back to IP)
+- Disabled database echo logging to prevent sensitive data leakage
+- AES-256-GCM encryption for anonymous voting
+
+#### Testing
+- Added 35+ tests for Phase 5 (outcome tracking, encryption service)
+- Added tests for deliberation service, preference elicitation, onboarding
+- Total coverage: 88.8% (164+ tests)
+
+#### Documentation
+- **Documentation Consolidation** - Reorganized from 41 files into 3 core documents
+  - `README.md` - Streamlined entry point (~100 lines)
+  - `GETTING_STARTED.md` - Complete developer onboarding guide (~500 lines)
+  - `TECHNICAL_SPECIFICATION.md` - Authoritative technical reference (~1000 lines, all 60+ endpoints)
+- Archived historical phase reports and duplicates to `docs/archive/`
+- Moved external specs (CEE, ISL) to `docs/external/`
+- Comprehensive codebase review report (CODEBASE_REVIEW_2025.md - archived)
+
+### Changed
+- Upgraded to version 2.0.0 reflecting major feature additions
+- Updated all documentation links to point to new consolidated structure
+
+### Fixed
+- Critical security issues (secrets exposure, authentication bypasses)
+- Performance bottlenecks (N+1 queries, resource leaks)
+- Version numbering inconsistencies across documentation
+
+---
+
 ## [1.0.0] - 2025-01-15
 
 ### Added
