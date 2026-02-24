@@ -2,6 +2,7 @@
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy import text
 from typing import AsyncGenerator
 import logging
 
@@ -10,11 +11,14 @@ from src.config import settings
 logger = logging.getLogger(__name__)
 
 # Create async engine
+# SECURITY: echo=False to prevent sensitive data in logs
+# Use SQLAlchemy event listeners for controlled query logging if needed
 engine = create_async_engine(
     settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
-    echo=settings.environment == "development",
+    echo=False,  # Disabled to prevent sensitive data logging
     pool_size=settings.database_pool_size,
     max_overflow=settings.database_max_overflow,
+    pool_pre_ping=True,  # Verify connections before use
 )
 
 # Create async session factory
@@ -31,9 +35,26 @@ Base = declarative_base()
 async def init_db() -> None:
     """Initialize database connection."""
     logger.info("Initializing database connection")
-    async with engine.begin() as conn:
-        # Create all tables (in production, use Alembic migrations)
-        await conn.run_sync(Base.metadata.create_all)
+
+    # Only auto-create tables in development mode
+    # In production, use Alembic migrations
+    if settings.environment == "development":
+        logger.warning(
+            "AUTO-CREATING DATABASE TABLES (development mode only)"
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    else:
+        logger.info(
+            "Skipping table auto-creation in %s environment. "
+            "Use Alembic migrations for schema changes.",
+            settings.environment
+        )
+
+    # Test database connection
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
+
     logger.info("Database initialized successfully")
 
 

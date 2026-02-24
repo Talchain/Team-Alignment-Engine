@@ -9,8 +9,8 @@ from src.config import settings
 from src.api.middleware import (
     RequestIDMiddleware,
     setup_error_handlers,
-    RateLimiterMiddleware,
 )
+from src.api.middleware.redis_rate_limiter import RedisRateLimiterMiddleware
 from src.api.routes import (
     health_router,
     sessions_router,
@@ -27,6 +27,13 @@ from src.api.routes import (
     coordination_router,
     advanced_analytics_router,
     plot_orchestration_router,
+    consensus_router,
+    deliberation_router,
+    preferences_router,
+    onboarding_router,
+    aggregation_router,
+    outcomes_router,
+    graph_analysis_router,
 )
 from src.api.metrics import MetricsMiddleware, metrics_endpoint
 from src.storage import init_db, init_cache
@@ -54,13 +61,22 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Request-ID",
+        "X-API-Key",
+        "Accept",
+        "Origin",
+    ],
+    expose_headers=["X-Request-ID"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Add custom middleware
 app.add_middleware(RequestIDMiddleware)
-app.add_middleware(RateLimiterMiddleware)
+app.add_middleware(RedisRateLimiterMiddleware)
 app.add_middleware(MetricsMiddleware)
 
 # Set up error handlers
@@ -75,6 +91,13 @@ app.include_router(options_router)
 app.include_router(concerns_router)
 app.include_router(decisions_router)
 app.include_router(phase_c_router)  # Phase C: Intelligent Assistance
+app.include_router(consensus_router)  # Consensus Builder (Habermas Machine)
+app.include_router(deliberation_router)  # Multi-Round Deliberation (Phase 1A/1B)
+app.include_router(preferences_router)  # Preference Elicitation (Phase 2A: ActiVA)
+app.include_router(onboarding_router)  # Onboarding (Phase 2B: Bayesian Teaching)
+app.include_router(aggregation_router)  # Aggregation Intelligence (Phase 3: Navajas)
+app.include_router(outcomes_router)  # Phase 5: Outcome Tracking & Learning
+app.include_router(graph_analysis_router)  # Phase 5: Graph Analysis & Refinement
 app.include_router(portfolio_router)  # Phase D1: Portfolio Analytics
 app.include_router(collaboration_router)  # Phase D2: Real-time Collaboration
 app.include_router(dependencies_router)  # Phase D3: Decision Dependencies
@@ -94,6 +117,12 @@ async def startup_event():
     logger.info(f"Environment: {settings.environment}")
 
     try:
+        # Validate production secrets on startup (fail fast if missing)
+        if settings.environment == "production":
+            from src.config.secrets import validate_production_secrets
+            validate_production_secrets()
+            logger.info("Production secrets validated")
+
         # Initialize database
         await init_db()
         logger.info("Database initialized")

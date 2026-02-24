@@ -334,3 +334,201 @@ cache_expiry_total = Counter(
     'Total cache entries expired',
     ['cache_type']
 )
+
+# Database Performance
+database_query_duration_seconds = Histogram(
+    'tae_database_query_duration_seconds',
+    'Database query duration in seconds',
+    ['operation'],  # select, insert, update, delete
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0)
+)
+
+database_connection_pool_size = Gauge(
+    'tae_database_connection_pool_size',
+    'Current database connection pool size'
+)
+
+database_connection_pool_in_use = Gauge(
+    'tae_database_connection_pool_in_use',
+    'Number of database connections currently in use'
+)
+
+database_connection_pool_overflow = Gauge(
+    'tae_database_connection_pool_overflow',
+    'Number of overflow connections created'
+)
+
+database_transaction_duration_seconds = Histogram(
+    'tae_database_transaction_duration_seconds',
+    'Database transaction duration in seconds',
+    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0)
+)
+
+# Error Tracking
+errors_total = Counter(
+    'tae_errors_total',
+    'Total errors by type and severity',
+    ['error_type', 'severity']  # validation, timeout, isl_failure, etc.
+)
+
+http_errors_total = Counter(
+    'tae_http_errors_total',
+    'Total HTTP errors by status code',
+    ['status_code', 'endpoint']
+)
+
+external_service_errors_total = Counter(
+    'tae_external_service_errors_total',
+    'Total external service errors',
+    ['service', 'error_type']  # isl, cee, redis
+)
+
+# Degraded Mode
+degraded_mode_activations_total = Counter(
+    'tae_degraded_mode_activations_total',
+    'Total degraded mode activations',
+    ['reason']  # redis_unavailable, isl_timeout, cee_unavailable
+)
+
+degraded_mode_active = Gauge(
+    'tae_degraded_mode_active',
+    'Whether degraded mode is currently active',
+    ['component']  # redis, isl, cee
+)
+
+degraded_mode_duration_seconds = Histogram(
+    'tae_degraded_mode_duration_seconds',
+    'Duration of degraded mode episodes in seconds',
+    ['component'],
+    buckets=(1, 5, 10, 30, 60, 300, 600, 3600)
+)
+
+# Queue Performance (for async tasks)
+queue_depth = Gauge(
+    'tae_queue_depth',
+    'Current queue depth',
+    ['queue_name']  # validation_queue, notification_queue, etc.
+)
+
+queue_processing_duration_seconds = Histogram(
+    'tae_queue_processing_duration_seconds',
+    'Queue task processing duration in seconds',
+    ['queue_name'],
+    buckets=(0.01, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0)
+)
+
+queue_tasks_processed_total = Counter(
+    'tae_queue_tasks_processed_total',
+    'Total queue tasks processed',
+    ['queue_name', 'status']  # success, failure, timeout
+)
+
+# Consensus Algorithm Performance
+consensus_calculation_duration_seconds = Histogram(
+    'tae_consensus_calculation_duration_seconds',
+    'Consensus calculation duration in seconds',
+    ['stakeholder_count'],  # <5, 5-10, 10-20, >20
+    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0)
+)
+
+graph_merge_duration_seconds = Histogram(
+    'tae_graph_merge_duration_seconds',
+    'Team perspective graph merge duration in seconds',
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
+)
+
+conflict_resolution_duration_seconds = Histogram(
+    'tae_conflict_resolution_duration_seconds',
+    'Conflict resolution duration in seconds',
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0)
+)
+
+# Consensus Builder (Habermas Machine) Metrics
+consensus_requests_total = Counter(
+    'tae_consensus_requests_total',
+    'Total consensus builder requests',
+    ['num_perspectives']  # 2, 3-5, 6-10
+)
+
+consensus_warnings_total = Counter(
+    'tae_consensus_warnings_total',
+    'Total consensus warnings generated',
+    ['warning_type']  # minority_has_strong_evidence, forced_compromise, weak_causal_backing
+)
+
+consensus_synthesis_options_generated_total = Counter(
+    'tae_consensus_synthesis_options_generated_total',
+    'Total synthesis options generated'
+)
+
+consensus_conflicts_detected_total = Counter(
+    'tae_consensus_conflicts_detected_total',
+    'Total conflicts detected',
+    ['conflict_type']  # causal, values, framing, mixed
+)
+
+# Deliberation System (Phase 1A/1B) Metrics
+deliberation_sessions_total = Counter(
+    'tae_deliberation_sessions_total',
+    'Total deliberation sessions started',
+    ['num_participants']  # 2-5, 6-10, 11-20
+)
+
+deliberation_rounds_per_session = Histogram(
+    'tae_deliberation_rounds_per_session',
+    'Number of rounds per deliberation session',
+    buckets=(1, 2, 3, 4, 5, 7, 10, 15, 20)
+)
+
+deliberation_convergence_rate = Gauge(
+    'tae_deliberation_convergence_rate',
+    'Percentage of sessions that converged (vs. max rounds)'
+)
+
+deliberation_minority_protections_triggered = Counter(
+    'tae_deliberation_minority_protections_triggered',
+    'Total times minority protection prevented premature consensus'
+)
+
+deliberation_vote_agreement_level = Histogram(
+    'tae_deliberation_vote_agreement_level',
+    'Agreement level in voting rounds',
+    buckets=(0.0, 0.2, 0.4, 0.6, 0.8, 0.9, 1.0)
+)
+
+deliberation_quality_score = Histogram(
+    'tae_deliberation_quality_score',
+    'Convergence quality scores',
+    buckets=(0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0)
+)
+
+facet_robustness_calls_total = Counter(
+    'tae_facet_robustness_calls_total',
+    'Total FACET robustness analysis calls'
+)
+
+facet_robustness_score = Histogram(
+    'tae_facet_robustness_score',
+    'FACET counterfactual robustness scores',
+    buckets=(0.0, 0.2, 0.4, 0.6, 0.8, 0.9, 1.0)
+)
+
+# PLoT Integration
+plot_requests_total = Counter(
+    'tae_plot_requests_total',
+    'Total requests from PLoT orchestration',
+    ['capability']  # core_alignment, d1_portfolio, d3_dependencies, d4_patterns
+)
+
+plot_response_size_bytes = Histogram(
+    'tae_plot_response_size_bytes',
+    'PLoT response payload size in bytes',
+    ['capability'],
+    buckets=(100, 1000, 10000, 100000, 1000000)
+)
+
+plot_capability_errors_total = Counter(
+    'tae_plot_capability_errors_total',
+    'Total PLoT capability processing errors',
+    ['capability', 'error_type']
+)

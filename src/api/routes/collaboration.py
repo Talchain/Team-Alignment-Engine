@@ -7,13 +7,52 @@ from uuid import UUID
 import logging
 import json
 from datetime import datetime
+from jose import JWTError, jwt
 
 from src.models.portfolio import CollaborationAction, SessionState
 from src.services.collaboration_manager import CollaborationManager
 from src.storage.cache import get_cache
+from src.config import settings
 
 router = APIRouter(prefix="/api/v1/collaboration", tags=["collaboration"])
 logger = logging.getLogger(__name__)
+
+
+async def verify_websocket_token(token: Optional[str]) -> str:
+    """
+    Verify JWT token from WebSocket connection and return user_id.
+
+    Args:
+        token: JWT token from query parameter or Authorization header
+
+    Returns:
+        user_id from token
+
+    Raises:
+        WebSocketDisconnect: If token is invalid or missing
+    """
+    if not token:
+        logger.warning("WebSocket connection attempted without token")
+        raise WebSocketDisconnect(code=1008, reason="Missing authentication token")
+
+    try:
+        # Verify and decode JWT token
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+        )
+
+        user_id = payload.get("sub")
+        if not user_id:
+            logger.warning("Token missing user_id claim")
+            raise WebSocketDisconnect(code=1008, reason="Invalid token: missing user_id")
+
+        return user_id
+
+    except JWTError as e:
+        logger.warning(f"WebSocket JWT verification failed: {e}")
+        raise WebSocketDisconnect(code=1008, reason="Invalid authentication token")
 
 
 class PresenceUpdate(BaseModel):
@@ -34,13 +73,19 @@ class BroadcastActionRequest(BaseModel):
 async def collaboration_websocket(
     websocket: WebSocket,
     session_id: UUID,
-    user_id: str = Query(..., description="User ID connecting to session"),
+    token: Optional[str] = Query(None, description="JWT authentication token"),
 ):
     """
     WebSocket endpoint for real-time collaboration.
 
+    **Authentication:**
+    - Requires JWT token in query parameter: ?token=<jwt>
+    - Token is verified before accepting connection
+    - User ID extracted from token claims
+
     **Protocol:**
-    - Client connects and provides user_id
+    - Client connects with JWT token
+    - Server verifies token and extracts user_id
     - Server broadcasts presence_joined to all participants
     - Client sends heartbeat every 10s to maintain presence
     - Client sends actions (votes, proposals, concerns)
@@ -84,6 +129,10 @@ async def collaboration_websocket(
     - Target: <100ms broadcast latency p95
     - Support: 50 concurrent users per session
     """
+    # Verify JWT token BEFORE accepting WebSocket connection
+    user_id = await verify_websocket_token(token)
+
+    # Accept WebSocket connection after successful authentication
     await websocket.accept()
 
     redis = await get_cache()
